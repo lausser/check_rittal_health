@@ -1,0 +1,98 @@
+check_rittal_health Nagios Plugin README
+---------------------
+
+This plugin checks the hardware health of Rittal CMC devices.
+
+* For instructions on installing this plugin for use with Nagios,
+  see below. In addition, generic instructions for the GNU toolchain
+  can be found in the INSTALL file.
+
+* For major changes between releases, read the CHANGES file.
+
+* For information on detailed changes that have been made,
+  read the Changelog file.
+
+* This plugins is self documenting.  All plugins that comply with
+  the basic guidelines for development will provide detailed help when
+  invoked with the '-h' or '--help' options.
+
+You can check for the latest plugin at:
+  http://labs.consol.de/nagios/check_rittal_health
+
+Send mail to gerhard.lausser@consol.de for assistance.  
+Please include the OS type and version that you are using.
+Also, run the plugin with the '-v' option and provide the resulting 
+version information.  Of course, there may be additional diagnostic information
+required as well.  Use good judgment.
+
+
+How to "compile" the check_rittal_health script.
+--------------------------------------------------------
+
+1) Run the configure script to initialize variables and create a Makefile, etc.
+
+	./configure --prefix=BASEDIRECTORY --with-nagios-user=SOMEUSER --with-nagios-group=SOMEGROUP --with-perl=PATH_TO_PERL
+
+   a) Replace BASEDIRECTORY with the path of the directory under which Nagios
+      is installed (default is '/usr/local/nagios')
+   b) Replace SOMEUSER with the name of a user on your system that will be
+      assigned permissions to the installed plugins (default is 'nagios')
+   c) Replace SOMEGRP with the name of a group on your system that will be
+      assigned permissions to the installed plugins (default is 'nagios')
+   d) Replace PATH_TO_PERL with the path where a perl binary can be found.
+      Besides the system wide perl you might have installed a private perl
+      just for the nagios plugins (default is the perl in your path).
+
+2) "Compile" the plugin with the following command:
+
+	make
+
+    This will produce a "check_rittal_health" script. You will also find
+    a "check_rittal_health.pl" which you better ignore. It is the base for
+    the compilation filled with placeholders. These will be replaced during
+    the make process.
+
+
+3) Install the compiled plugin script with the following command:
+
+	make install
+
+   The installation procedure will attempt to place the plugin in a 
+   'libexec/' subdirectory in the base directory you specified with
+   the --prefix argument to the configure script.
+
+
+4) Verify that your configuration files for Nagios contains
+   the correct paths to the new plugin.
+
+
+
+Command line parameters
+-----------------------
+
+-v, --verbose
+   Increased verbosity will print how check_rittal_health communicates with the
+   hpasm daemon and which values were acquired.
+
+-t, --timeout
+   The number of seconds after which the plugin will abort.
+
+
+
+
+A snmp forwarding trick 
+-----------------------
+local - where check_rittal_health runs
+remote - where a proliant can be reached
+proliant - where the snmp agent runs
+
+remote:
+ssh -R6667:localhost:6667 local
+socat tcp4-listen:6667,reuseaddr,fork UDP:proliant:161
+
+local:
+socat udp4-listen:161,reuseaddr,fork tcp:localhost:6667
+check_rittal_health --hostname 127.0.0.1
+
+--
+Gerhard Lausser <gerhard.lausser@consol.de>

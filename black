@@ -1,0 +1,54 @@
+CRITICAL - fcal controller in box 1/slot 0 needs attention, logical drive 1:1 is failed (advancedDataGuard), physical drive 1:128 is failed, physical drive 1:130 is failed, physical drive 1:132 is failed, status of all 4 dimms is n/a (please upgrade firmware), System: 'proliant dl360 g5', S/N: 'USM65201WS', ROM: 'P58 05/18/2009'
+checking cpus
+cpu 0 is ok                                                             | c:0
+cpu 1 is ok                                                             | c:1
+checking power supplies
+powersupply 1 is ok                                                     | p:1
+powersupply 2 is ok                                                     | p:2
+checking fans
+fan 1 is present, speed is normal, ....                                 | f:1
+fan 2 is present, speed is normal, ....                                 | f:2
+fan 3 is present, speed is normal, ....                                 | f:3
+overall fan status: fan=ok, cpu=ok
+checking temperatures
+1 ioBoard temperature is 42C (65 max)                                   | t:1
+2 ambient temperature is 18C (40 max)                                   | t:2
+3 cpu temperature is 30C (95 max)                                       | t:3
+4 cpu temperature is 30C (95 max)                                       | t:4
+5 powerSupply temperature is 29C (60 max)                               | t:5
+checking memory
+dimm module 0:1 (module 1 @ cartridge 0) is ok                          | d:0:1
+dimm module 0:2 (module 2 @ cartridge 0) is ok                          | d:0:2
+dimm module 0:3 (module 3 @ cartridge 0) is ok                          | d:0:3
+dimm module 0:4 (module 4 @ cartridge 0) is ok                          | d:0:4
+dimm module 0:5 (module 5 @ cartridge 0) needs attention (degraded)     | d:0:5
+dimm module 0:6 (module 6 @ cartridge 0) is ok                          | d:0:6
+dimm module 0:7 (module 7 @ cartridge 0) is ok                          | d:0:7
+dimm module 0:8 (module 8 @ cartridge 0) is ok                          | d:0:8
+checking disk subsystem
+da controller 3 in slot 0 is ok                                         | daco:3
+controller accelerator is ok                                            | daac:3
+controller accelerator battery is ok                                    | daacb:3
+logical drive 3:1 is ok (mirroring)                                     | dald:3:1
+logical drive 3:2 is ok (mirroring)                                     | dald:3:2
+physical drive 3:0 is ok                                                | dapd:3:0
+physical drive 3:1 is ok                                                | dapd:3:1
+physical drive 3:2 is ok                                                | dapd:3:2
+physical drive 3:3 is ok                                                | dapd:3:3
+ide controller 0 in slot -1 is ok and unused                            | ideco:0
+fcal controller 1:0 in box 1/slot 0 needs attention (degraded)          | fcaco:1:0
+fcal accelerator in box 1/slot 0 is temp disabled                       | fcac:1:0
+logical drive 1:1 is failed (advancedDataGuard)                         | fcald:1:1
+physical drive 1:128 is failed                                          | fcapd:1:128
+physical drive 1:129 is ok                                              | fcapd:1:129
+physical drive 1:130 is failed                                          | fcapd:1:130
+physical drive 1:131 is ok                                              | fcapd:1:131
+physical drive 1:132 is failed                                          | fcapd:1:132
+physical drive 1:133 is ok                                              | fcapd:1:133
+physical drive 1:134 is ok                                              | fcapd:1:134
+physical drive 1:135 is ok                                              | fcapd:1:135
+physical drive 1:144 is ok                                              | fcapd:1:144
+physical drive 1:145 is ok                                              | fcapd:1:145
+physical drive 1:147 is unconfigured                                    | fcapd:1:147
+fcal host controller 0 in slot 1 is ok                                  | fcahc:0
+fcal host controller 1 in slot 1 is ok                                  | fcahc:1
