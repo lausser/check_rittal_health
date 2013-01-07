@@ -1,35 +1,33 @@
-package Rittal::CMCTC::Unit::Sensor;
+package NWC::Rittal::CMCII::Sensor;
 
-our @ISA = qw(Rittal::CMCTC::Unit);
+our @ISA = qw(NWC::Rittal::CMCII::Unit);
 
 use strict;
 use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
 
 sub new {
-  my $class  = shift;
+  my $class = shift;
   my %params = @_;
-  my $self   = {
-    runtime      => $params{runtime},
-    rawdata      => $params{rawdata},
-    unitSensorUnit => $params{unitSensorUnit},
-
-    blacklisted  => 0,
-    info         => undef,
+  my $self = {
+    blacklisted => 0,
+    info => undef,
     extendedinfo => undef,
   };
-  foreach (grep /^unit\d+/, keys %params) {
-    my $tmpkey = $_;
-    $tmpkey =~ s/unit\d+/unit/;
-    $self->{$tmpkey} = $params{$_};
+  foreach my $param (qw(unitSensorIndex unitSensorText unitSensorStatus
+      unitSensorType unitSensorValue unitSensorSetLow
+      unitSensorSetWarn unitSensorSetHigh)) {
+    if (exists $params{$param}) {
+      $self->{$param} = $params{$param};
+    }
   }
-  $self->{unitSensorValue} = $self->{unitSensorVal};
-  delete $self->{unitSensorVal}; # das kommt von der Sonderrolle von ...Value
   bless $self, $class;
   if ($self->{unitSensorType} eq 'temperature') {
-    bless $self, 'Rittal::CMCTC::Unit::TemperatureSensor';
+    bless $self, 'Rittal::CMCII::TemperatureSensor';
   }
+  #$self->init(%params);
   return $self;
 }
+
 
 sub check {
   my $self = shift;

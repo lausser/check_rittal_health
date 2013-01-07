@@ -57,6 +57,11 @@ sub getopts {
        $self->{opts}->getopts();
 }
 
+sub override_opt { 
+   my $self = shift;
+   $self->{opts}->override_opt(@_);
+}
+
 sub opts {
        my $self = shift;
        return $self->{opts};
@@ -72,7 +77,17 @@ sub add_message {
 
 sub add_perfdata {
   my ($self, %args) = @_;
-  my $str = $args{label}.'='.$args{value};
+  #if ($args{label} =~ /\s/) {
+    $args{label} = '\''.$args{label}.'\'';
+  #}
+  if (! exists $args{places}) {
+    $args{places} = 2;
+  }
+  my $format = '%d';
+  if ($args{value} =~ /\./) {
+    $format = '%.'.$args{places}.'f';
+  }
+  my $str = $args{label}.'='.sprintf $format, $args{value};
   if ($args{uom}) {
     $str .= $args{uom};
   }
@@ -85,6 +100,13 @@ sub add_perfdata {
   push @{$self->{perfdata}}, $str;
 }
 
+sub clear_messages {
+  my $self = shift;
+  my $code = shift;
+  $code = (qw(ok warning critical unknown))[$code] if $code =~ /^\d+$/;
+  $code = lc $code;
+  $self->{messages}->{$code} = [];
+}
 
 sub check_messages {
   my $self = shift;
@@ -161,6 +183,83 @@ sub nagios_exit {
   exit $code;
 }
 
+sub set_thresholds {
+  my $self = shift;
+  my %params = @_;
+  $self->{mywarning} = $self->opts->warning || $params{warning} || 0;
+  $self->{mycritical} = $self->opts->critical || $params{critical} || 0;
+}
+
+sub get_thresholds {
+  my $self = shift;
+  return ($self->{mywarning}, $self->{mycritical});
+}
+
+sub check_thresholds {
+  my $self = shift;
+  my @params = @_;
+  my $level = $ERRORS{OK};
+  my $warningrange;
+  my $criticalrange;
+  my $value;
+  if (scalar(@params) > 1) {
+    my %params = @params;
+    $value = $params{check};
+    $warningrange = (defined $params{warning}) ?
+        $params{warning} : $self->{mywarning};
+    $criticalrange = (defined $params{critical}) ?
+        $params{critical} : $self->{mycritical};
+  } else {
+    $value = $params[0];
+    $warningrange = $self->{mywarning};
+    $criticalrange = $self->{mycritical};
+  }
+  if ($warningrange =~ /^(\d+)$/) {
+    # warning = 10, warn if > 10 or < 0
+    $level = $ERRORS{WARNING}
+        if ($value > $1 || $value < 0);
+  } elsif ($warningrange =~ /^(\d+):$/) {
+    # warning = 10:, warn if < 10
+    $level = $ERRORS{WARNING}
+        if ($value < $1);
+  } elsif ($warningrange =~ /^~:(\d+)$/) {
+    # warning = ~:10, warn if > 10
+    $level = $ERRORS{WARNING}
+        if ($value > $1);
+  } elsif ($warningrange =~ /^(\d+):(\d+)$/) {
+    # warning = 10:20, warn if < 10 or > 20
+    $level = $ERRORS{WARNING}
+        if ($value < $1 || $value > $2);
+  } elsif ($warningrange =~ /^@(\d+):(\d+)$/) {
+    # warning = @10:20, warn if >= 10 and <= 20
+    $level = $ERRORS{WARNING}
+        if ($value >= $1 && $value <= $2);
+  }
+  if ($criticalrange =~ /^(\d+)$/) {
+    # critical = 10, crit if > 10 or < 0
+    $level = $ERRORS{CRITICAL}
+        if ($value > $1 || $value < 0);
+  } elsif ($criticalrange =~ /^(\d+):$/) {
+    # critical = 10:, crit if < 10
+    $level = $ERRORS{CRITICAL}
+        if ($value < $1);
+  } elsif ($criticalrange =~ /^~:(\d+)$/) {
+    # critical = ~:10, crit if > 10
+    $level = $ERRORS{CRITICAL}
+        if ($value > $1);
+  } elsif ($criticalrange =~ /^(\d+):(\d+)$/) {
+    # critical = 10:20, crit if < 10 or > 20
+    $level = $ERRORS{CRITICAL}
+        if ($value < $1 || $value > $2);
+  } elsif ($criticalrange =~ /^@(\d+):(\d+)$/) {
+    # critical = @10:20, crit if >= 10 and <= 20
+    $level = $ERRORS{CRITICAL}
+        if ($value >= $1 && $value <= $2);
+  }
+  return $level;
+}
+
+
 package Nagios::MiniPlugin::Getopt;
 
 use strict;
@@ -192,7 +291,7 @@ my @ARGS = ({
     #help => "--extra-opts=[<section>[@<config_file>]]\n   Section and/or config_file from which to load extra options (may repeat)",
   }, {
     spec => 'timeout|t=i',
-    help => "-t, --timeout=INTEGER\n   Seconds before plugin times out (default: %s)",
+    help => sprintf("-t, --timeout=INTEGER\n   Seconds before plugin times out (default: %s)", $DEFAULT{timeout}),
     default => $DEFAULT{timeout},
   }, {
     spec => 'verbose|v+',
@@ -283,6 +382,13 @@ sub getopts {
       $self->{opts}->{$_} = $commandline{$_};
     }
   }
+}
+
+sub override_opt {
+  my $self = shift;
+  my $key = shift;
+  my $value = shift;
+  $self->{opts}->{$key} = $value;
 }
 
 sub get {

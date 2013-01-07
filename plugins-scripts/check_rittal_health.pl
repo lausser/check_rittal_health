@@ -2,12 +2,16 @@
 
 use strict;
 
-my $CELSIUS = 1;
-my $PERFDATA = 1;
-my $EXTENDEDINFO = 1;
-my $HWINFO = 1;
-my $HPACUCLI = 1;
-my $NOINSTLEVEL = 'unknown';
+
+use vars qw ($PROGNAME $REVISION $CONTACT $TIMEOUT $STATEFILESDIR $needs_restart %commandline $CELSIUS $PERFDATA);
+
+$PROGNAME = "check_rittal_health";
+$REVISION = '$Revision: #PACKAGE_VERSION# $';
+$CONTACT = 'gerhard.lausser@consol.de';
+$TIMEOUT = 60;
+$STATEFILESDIR = '/var/tmp/check_rittal_health';
+$CELSIUS = 1;
+$PERFDATA = 1;
 
 use constant OK         => 0;
 use constant WARNING    => 1;
@@ -15,12 +19,36 @@ use constant CRITICAL   => 2;
 use constant UNKNOWN    => 3;
 use constant DEPENDENT  => 4;
 
+
+my @modes = (
+  ['device::uptime',
+      'uptime', undef,
+      'Check the uptime of the device' ],
+  ['device::sensors::health',
+      'overall-health', undef,
+      'Check the state of the sensors' ],
+  ['device::sensors::list',
+      'list-sensors', undef,
+      'Show the sensors of the device and update the name cache' ],
+  ['device::walk',
+      'walk', undef,
+      'Show snmpwalk command with the oids necessary for a simulation' ],
+);
+my $modestring = "";
+my $longest = length ((reverse sort {length $a <=> length $b} map { $_->[1] } @modes)[0]);
+my $format = "       %-".
+  (length ((reverse sort {length $a <=> length $b} map { $_->[1] } @modes)[0])).  "s\t(%s)\n";
+foreach (@modes) {
+  $modestring .= sprintf $format, $_->[1], $_->[3];
+}
+$modestring .= sprintf "\n";
+
 my $plugin = Nagios::MiniPlugin->new(
     shortname => '',
     usage => 'Usage: %s [ -v|--verbose ] [ -t <timeout> ] '.
-        '--hostname <proliant> --community <snmp-community>'.
+        '--hostname <ctc> --community <snmp-community>'.
         '  ...]',
-    version => '4.0',
+    version => $REVISION,
     blurb => 'This plugin checks the status of rittal cmc-tc units',
     url => 'http://labs.consol.de/nagios/check_rittal_health',
     timeout => 60,
@@ -112,19 +140,44 @@ $plugin->add_arg(
     required => 0,
 );
 $plugin->add_arg(
-    spec => 'snmpwalk=s',
-    help => '--snmpwalk
-   A file with the output of snmpwalk 1.3.6.1.4.1.232',
+    spec => 'servertype=s',
+    help => '--servertype
+   The type of the network device: rittal (default). Use it if auto-detection
+   is not possible',
     required => 0,
 );
 $plugin->add_arg(
-    spec => 'hpasmcli=s',
-    help => '--hpasmcli
-   A file with the output of hpasmcli',
+    spec => 'statefilesdir=s',
+    help => '--statefilesdir
+   An alternate directory where the plugin can save files',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'snmpwalk=s',
+    help => '--snmpwalk
+   A file with the output of snmpwalk 1.3.6.1.4.1.3309',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'snmphelp',
+    help => '--snmphelp
+   Output the list of OIDs you need to walk for a simulation file',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'multiline',
+    help => '--multiline
+   Multiline output',
     required => 0,
 );
 
+
 $plugin->getopts();
+if ($plugin->opts->multiline) {
+  $ENV{NRPE_MULTILINESUPPORT} = 1;
+} else {
+  $ENV{NRPE_MULTILINESUPPORT} = 0;
+}
 if (! $PERFDATA && $plugin->opts->get('perfdata')) {
   $PERFDATA = 1;
 }
@@ -132,39 +185,112 @@ if ($PERFDATA && $plugin->opts->get('perfdata') &&
     ($plugin->opts->get('perfdata') eq 'short')) {
   $PERFDATA = 2;
 }
+if ($plugin->opts->snmphelp) {
+  my @subtrees = ("1");
+  foreach my $mib (keys %{$NWC::Device::mibs_and_oids}) {
+    foreach my $table (grep {/Table$/} keys %{$NWC::Device::mibs_and_oids->{$mib
+}}) {
+      push(@subtrees, $NWC::Device::mibs_and_oids->{$mib}->{$table});
+    }
+  }
+  printf "snmpwalk -On ... %s\n", join(" ", @subtrees);
+  printf "snmpwalk -On ... %s\n", join(" ", @subtrees);
+  exit 0;
+}
+if ($plugin->opts->community) {
+  if ($plugin->opts->community =~ /^snmpv3(.)(.+)/) {
+    my $separator = $1;
+    my ($authprotocol, $authpassword, $privprotocol, $privpassword, $username) =
+        split(/$separator/, $2);
+    $plugin->override_opt('authprotocol', $authprotocol)
+        if defined($authprotocol) && $authprotocol;
+    $plugin->override_opt('authpassword', $authpassword)
+        if defined($authpassword) && $authpassword;
+    $plugin->override_opt('privprotocol', $privprotocol)
+        if defined($privprotocol) && $privprotocol;
+    $plugin->override_opt('privpassword', $privpassword)
+        if defined($privpassword) && $privpassword;
+    $plugin->override_opt('username', $username)
+        if defined($username) && $username;
+    $plugin->override_opt('protocol', '3') ;
+  }
+}
+if ($plugin->opts->snmpwalk) {
+  $plugin->override_opt('hostname', 'snmpwalk.file')
+}
+if (! $plugin->opts->statefilesdir) {
+  if (exists $ENV{OMD_ROOT}) {
+    $plugin->override_opt('statefilesdir', $ENV{OMD_ROOT}."/var/tmp/check_nwc_health");
+  } else {
+    $plugin->override_opt('statefilesdir', $STATEFILESDIR);
+  }
+}
+
 $plugin->{messages}->{unknown} = []; # wg. add_message(UNKNOWN,...)
 
 $plugin->{info} = []; # gefrickel
-my $server = Rittal::Device->new( runtime => {
+
+if ($plugin->opts->mode =~ /^my-([^\-.]+)/) {
+  my $param = $plugin->opts->mode;
+  $param =~ s/\-/::/g;
+  push(@modes, [$param, $plugin->opts->mode, undef, 'my extension']);
+} elsif ($plugin->opts->mode eq 'encode') {
+  my $input = <>;
+  chomp $input;
+  $input =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
+  printf "%s\n", $input;
+  exit 0;
+} elsif ((! grep { $plugin->opts->mode eq $_ } map { $_->[1] } @modes) &&
+    (! grep { $plugin->opts->mode eq $_ } map { defined $_->[2] ? @{$_->[2]} : () } @modes)) {
+  printf "UNKNOWN - mode %s\n", $plugin->opts->mode;
+  $plugin->opts->print_help();
+  exit 3;
+}
+
+$SIG{'ALRM'} = sub {
+  printf "UNKNOWN - check_nwc_health timed out after %d seconds\n",
+      $plugin->opts->timeout;
+  exit $ERRORS{UNKNOWN};
+};
+alarm($plugin->opts->timeout);
+
+$NWC::Device::plugin = $plugin;
+$NWC::Device::mode = (
+    map { $_->[0] }
+    grep {
+       ($plugin->opts->mode eq $_->[1]) ||
+       ( defined $_->[2] && grep { $plugin->opts->mode eq $_ } @{$_->[2]})
+    } @modes
+)[0];
+my $server = NWC::Device->new( runtime => {
+
     plugin => $plugin,
     options => {
-        mode => $plugin->opts->get('mode'),
-        servertype => $plugin->opts->get('servertype'),
-        verbose => $plugin->opts->get('verbose'),
+        servertype => $plugin->opts->servertype,
+        verbose => $plugin->opts->verbose,
         customthresholds => $plugin->opts->get('customthresholds'),
-        blacklist => $plugin->opts->get('blacklist'),
+        blacklist => $plugin->opts->blacklist,
         celsius => $CELSIUS,
         perfdata => $PERFDATA,
-        extendedinfo => $EXTENDEDINFO,
-        hwinfo => $HWINFO,
     },
 },);
+#$server->dumper();
 if (! $plugin->check_messages()) {
   $server->init();
   if (! $plugin->check_messages()) {
-    $plugin->add_message(OK, 'hardware working fine');
-    $plugin->add_message(OK, $server->get_summary()) 
+    $plugin->add_message(OK, $server->get_summary())
         if $server->get_summary();
-    $plugin->add_message(OK, $server->get_extendedinfo()) 
+    $plugin->add_message(OK, $server->get_extendedinfo())
         if $server->get_extendedinfo();
-  } 
+  }
 } else {
   $plugin->add_message(CRITICAL, 'wrong device');
 }
-
-my ($code, $message) = $plugin->check_messages(join => ', ', join_all => ', ');
-$message .= sprintf "\n%s\n", join("\n", @{$plugin->{info}})
-    if $plugin->opts->get('verbose') >= 1;
-#printf "%s\n", Data::Dumper::Dumper($plugin->{info});
+my ($code, $message) = $plugin->opts->multiline ?
+    $plugin->check_messages(join => "\n", join_all => ', ') :
+    $plugin->check_messages(join => ', ', join_all => ', ');
+$message .= sprintf "\n%s\n", join("\n", @{$NWC::Device::info})
+    if $plugin->opts->verbose >= 1;
 $plugin->nagios_exit($code, $message);
+
 

@@ -13,12 +13,13 @@ libexec_SCRIPTS=check_rittal_health
 MY_MODULES=
 EXTRA_MODULES=\
   Nagios/MiniPlugin.pm \
-  Rittal/SNMP/Utils.pm \
-  Rittal/Device.pm \
-  Rittal/CMCTC.pm \
-  Rittal/CMCTC/Unit.pm \
-  Rittal/CMCTC/Unit/Sensor.pm \
-  Rittal/CMCTC/Unit/TemperatureSensor.pm 
+  NWC/Rittal/CMCII/TemperatureSensor.pm \
+  NWC/Rittal/CMCII/Sensor.pm \
+  NWC/Rittal/CMCII/Unit.pm \
+  NWC/Rittal/CMCII.pm \
+  NWC/Rittal.pm \
+  NWC/MibsAndOids.pm \
+  NWC/Device.pm
 EXTRA_DIST=check_rittal_health.pl $(EXTRA_MODULES)
 
 CLEANFILES=$(libexec_SCRIPTS)
