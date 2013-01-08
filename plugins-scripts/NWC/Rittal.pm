@@ -13,15 +13,16 @@ use constant trees => (
 
 sub init {
   my $self = shift;
+  my %params = @_;
   if ($self->{productname} =~ /Rittal CMC.*III/) {
     bless $self, 'NWC::Rittal::CMCIII';
     $self->debug('using NWC::Rittal::CMCIII');
-  } elsif ($self->{productname} =~ /Rittal CMC /) {
+  } elsif ($self->{productname} =~ /Rittal CMC/) {
     bless $self, 'NWC::Rittal::CMCII';
     $self->debug('using NWC::Rittal::CMCII');
   } else {
     exit 3;
   }
-  $self->init();
+  $self->init(%params);
 }
 

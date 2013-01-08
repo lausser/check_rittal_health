@@ -1,6 +1,6 @@
-package Rittal::CMCTC::Unit::TemperatureSensor;
+package NWC::Rittal::CMCII::TemperatureSensor;
 
-our @ISA = qw(Rittal::CMCTC::Unit::Sensor);
+our @ISA = qw(NWC::Rittal::CMCII::Sensor);
 
 use strict;
 use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };

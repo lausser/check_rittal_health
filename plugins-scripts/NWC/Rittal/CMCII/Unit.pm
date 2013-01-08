@@ -22,6 +22,7 @@ sub init {
   my $self = shift;
   my %params = @_;
   my $unit = $params{unitnr};
+  $self->{cmcTcUnitNumber} = $unit;
   $self->{cmcTcUnitTypeOfDevice} =
       $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'TypeOfDevice');
   $self->{cmcTcUnitText} =
@@ -30,10 +31,11 @@ sub init {
       $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'Status');
   $self->{cmcTcUnitNumberOfSensors} =
       $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'NumberOfSensors');
+#printf "%s\n", Data::Dumper::Dumper($self);
   # although unit4 is defined in the mib, it doesn't exist in reality
 
   $self->add_info(sprintf 'unit %d has status %s',
-      $self->{number}, $self->{cmcTcUnitStatus});
+      $unit, $self->{cmcTcUnitStatus});
   if ($self->{cmcTcUnitStatus} ne "not Avail") {
     foreach ($self->get_snmp_table_objects(
        'RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'SensorTable')) {
@@ -44,7 +46,8 @@ sub init {
           #delete $_->{$k};
         }
       }
-printf "%s\n", Data::Dumper::Dumper($_);
+      $_->{unitSensorUnit} = $unit;
+#printf "%s\n", Data::Dumper::Dumper($_);
       push(@{$self->{sensors}},
           NWC::Rittal::CMCII::Sensor->new(%{$_}));
     }
@@ -59,7 +62,7 @@ sub check {
 
 sub dump {
   my $self = shift;
-  printf "[CMC-TC-UNIT-%d]\n", $self->{number};
+  printf "[CMC-TC-UNIT-%d]\n", $self->{cmcTcUnitNumber};
   foreach (qw(cmcTcUnitTypeOfDevice cmcTcUnitText cmcTcUnitStatus cmcTcUnitNumberOfSensors)) {
     printf "%s: %s\n", $_, $self->{$_};
   }
@@ -67,6 +70,13 @@ sub dump {
   printf "\n";
   foreach (@{$self->{sensors}}) {
     $_->dump();
+  }
+}
+
+sub list {
+  my $self = shift;
+  foreach (sort {$a->{unitSensorIndex} <=> $b->{unitSensorIndex}} @{$self->{sensors}}) {
+    $_->list();
   }
 }
 

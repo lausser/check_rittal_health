@@ -1,6 +1,6 @@
 package NWC::Rittal::CMCII::Sensor;
 
-our @ISA = qw(NWC::Rittal::CMCII::Unit);
+our @ISA = qw(NWC::Rittal::CMCII);
 
 use strict;
 use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
@@ -13,16 +13,14 @@ sub new {
     info => undef,
     extendedinfo => undef,
   };
-  foreach my $param (qw(unitSensorIndex unitSensorText unitSensorStatus
-      unitSensorType unitSensorValue unitSensorSetLow
-      unitSensorSetWarn unitSensorSetHigh)) {
+  foreach my $param (keys %params) {
     if (exists $params{$param}) {
       $self->{$param} = $params{$param};
     }
   }
   bless $self, $class;
   if ($self->{unitSensorType} eq 'temperature') {
-    bless $self, 'Rittal::CMCII::TemperatureSensor';
+    bless $self, 'NWC::Rittal::CMCII::TemperatureSensor';
   }
   #$self->init(%params);
   return $self;
@@ -49,6 +47,11 @@ sub dump {
   printf "info: %s\n", $self->{info};
   printf "\n";
 
+}
+
+sub list {
+  my $self = shift;
+  printf "unit%d sensor%d (%s)\n", $self->{unitSensorUnit}, $self->{unitSensorIndex}, $self->{unitSensorText} if $self->{unitSensorType} ne "notAvail";
 }
 
 1;

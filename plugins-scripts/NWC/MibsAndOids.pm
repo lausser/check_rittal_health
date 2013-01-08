@@ -164,7 +164,9 @@ $NWC::Device::mibs_and_oids = {
     cmcTcUnit4SensorTable => '1.3.6.1.4.1.2606.4.2.6.5.2',
     cmcTcUnit4SensorEntry => '1.3.6.1.4.1.2606.4.2.6.5.2.1',
     unit4SensorIndex => '1.3.6.1.4.1.2606.4.2.6.5.2.1.1',
+
     unit4SensorType => '1.3.6.1.4.1.2606.4.2.6.5.2.1.2',
+
     unit4SensorTypeDefinition => 'RITTAL-CMC-TC-MIB::unitxSensorType',
     unit4SensorText => '1.3.6.1.4.1.2606.4.2.6.5.2.1.3',
     unit4SensorStatus => '1.3.6.1.4.1.2606.4.2.6.5.2.1.4',
