@@ -17,6 +17,7 @@ EXTRA_MODULES=\
   NWC/Rittal/CMCII/Sensor.pm \
   NWC/Rittal/CMCII/Unit.pm \
   NWC/Rittal/CMCII.pm \
+  NWC/Rittal/CMCIII.pm \
   NWC/Rittal.pm \
   NWC/MibsAndOids.pm \
   NWC/Device.pm

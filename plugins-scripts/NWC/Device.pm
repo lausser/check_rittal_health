@@ -32,10 +32,7 @@ sub new {
     } else {
       $self->check_snmp_and_model();
     }
-    if ($self->opts->servertype) {
-      $self->{productname} = 'rittal' if $self->opts->servertype eq 'rittal';
-    }
-    if (! $NWC::Device::plugin->check_messages()) {
+    if (! $NWC::Device::plugin->check_messages() || $self->opts->servertype) {
       if ($self->opts->verbose && $self->opts->verbose) {
         printf "I am a %s\n", $self->{productname};
       }
@@ -134,8 +131,9 @@ sub check_snmp_and_model {
       $self->opts->override_opt('hostname', 'walkhost');
       open(MESS, $self->opts->snmpwalk);
       while(<MESS>) {
+        chomp;
         s/^iso/1/g;
-        s/^enterprises/1.3.6.1.4.1/g;
+        s/^SNMPv2-SMI::enterprises/1.3.6.1.4.1/g;
         # SNMPv2-SMI::enterprises.232.6.2.6.7.1.3.1.4 = INTEGER: 6
         if (/^([\d\.]+) = .*?INTEGER: .*\((\-*\d+)\)/) {
           # .1.3.6.1.2.1.2.2.1.8.1 = INTEGER: down(2)
@@ -145,6 +143,11 @@ sub check_snmp_and_model {
           $response->{$1} = $2;
         } elsif (/^([\d\.]+) = STRING:\s*$/) {
           $response->{$1} = "";
+        } elsif (/^([\d\.]+) = Network Address: (.*)/) {
+          $response->{$1} = $2;
+        } elsif (/^([\d\.]+) = Hex-STRING: (.*)/) {
+          $response->{$1} = "0x".$2;
+          $response->{$1} =~ s/\s+$//;
         } elsif (/^([\d\.]+) = \w+: (\-*\d+)/) {
           $response->{$1} = $2;
         } elsif (/^([\d\.]+) = \w+: "(.*?)"/) {
@@ -158,6 +161,8 @@ sub check_snmp_and_model {
         } elsif (/^([\d\.]+) = "(.*?)"/) {
           $response->{$1} = $2;
           $response->{$1} =~ s/\s+$//;
+        } elsif ($self->opts->verbose > 10) {
+          printf "SCHROTT (%s)\n", $_;
         }
       }
       close MESS;
@@ -237,6 +242,8 @@ sub whoami {
   my $dummy = '1.3.6.1.2.1.1.5.0';
   if ($productname = $self->get_snmp_object('MIB-II', 'sysDescr', 0)) {
     $self->{productname} = $productname;
+  } elsif ($self->opts->servertype) {
+    $self->{productname} = $self->opts->servertype;
   } else {
     $self->add_message(CRITICAL,
         'snmpwalk returns no product name (sysDescr)');
