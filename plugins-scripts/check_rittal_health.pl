@@ -65,10 +65,23 @@ my $plugin = Nagios::MiniPlugin->new(
 );
 $plugin->add_arg(
     spec => 'mode=s',
-    help => '--mode
-   Tell the plugin what it should do',
+    help => "--mode
+   Tell the plugin what it should do
+$modestring",
     required => 0,
     default => 'overall-health',
+);
+$plugin->add_arg(
+    spec => 'name=s',
+    help => "--name
+   The name of an interface",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'regexp',
+    help => "--regexp
+   A flag indicating that --name is a regular expression",
+    required => 0,
 );
 $plugin->add_arg(
     spec => 'blacklist|b=s',

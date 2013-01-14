@@ -14,7 +14,7 @@ use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
   our $info = [];
   our $extendedinfo = [];
   our $summary = [];
-  our $statefilesdir = '/var/tmp/check_nwc_health';
+  our $statefilesdir = '/var/tmp/check_rittal_health';
   our $oidtrace = [];
 }
 
@@ -335,7 +335,7 @@ sub valid_response {
 sub debug {
   my $self = shift;
   my $format = shift;
-  $self->{trace} = -f "/tmp/check_nwc_health.trace" ? 1 : 0;
+  $self->{trace} = -f "/tmp/check_rittal_health.trace" ? 1 : 0;
   if ($self->opts->verbose && $self->opts->verbose > 10) {
     printf("%s: ", scalar localtime);
     printf($format, @_);
@@ -344,7 +344,7 @@ sub debug {
   if ($self->{trace}) {
     my $logfh = new IO::File;
     $logfh->autoflush(1);
-    if ($logfh->open("/tmp/check_nwc_health.trace", "a")) {
+    if ($logfh->open("/tmp/check_rittal_health.trace", "a")) {
       $logfh->printf("%s: ", scalar localtime);
       $logfh->printf($format, @_);
       $logfh->printf("\n");
@@ -752,6 +752,26 @@ sub make_symbolic {
             } else {
               $mo->{$symoid} = 'unknown_'.$result->{$fulloid};
               # oder $NWC::Device::mibs_and_oids->{$mib}->{$symoid.'Definition'}?
+            }
+          } elsif (exists $NWC::Device::mibs_and_oids->{$mib}->{$symoid.'ObjectIdentifier'}) {
+            if (ref($NWC::Device::mibs_and_oids->{$mib}->{$symoid.'ObjectIdentifier'}) eq 'HASH') {
+            } else {
+              my $oidmib = $NWC::Device::mibs_and_oids->{$mib}->{$symoid.'ObjectIdentifier'};
+              if (exists $NWC::Device::oids->{$oidmib}) {
+                $mo->{$symoid} = $result->{$fulloid};
+                if (substr($result->{$fulloid}, 0, 1) eq ".") {
+                  $result->{$fulloid} = substr($result->{$fulloid}, 1);
+                } elsif (substr($result->{$fulloid}, 0, 23) eq "SNMPv2-SMI::enterprises") {
+                  $result->{$fulloid} = "1.3.6.1.4.1".substr($result->{$fulloid}, 23);
+                }
+                foreach my $key (keys %{$NWC::Device::oids->{$oidmib}}) {
+                  if ($result->{$fulloid} eq
+                      $NWC::Device::oids->{$oidmib}->{$key}) {
+                    $mo->{$symoid} = $key;
+                    last;
+                  }
+                }
+              }
             }
           } else {
             $mo->{$symoid} = $result->{$fulloid};
