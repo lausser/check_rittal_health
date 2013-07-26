@@ -57,7 +57,9 @@ sub init {
 sub check {
   my $self = shift;
   my %params = @_;
-  printf "am arch\n";
+  foreach (@{$self->{sensors}}) {
+    $_->check();
+  }
 }
 
 sub dump {

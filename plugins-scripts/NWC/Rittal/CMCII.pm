@@ -63,8 +63,8 @@ sub check {
     } else {
       $self->add_message(OK, $info);
     }
-    $self->dump() if $self->opts->verbose >= 2;;
     $self->check_sensor_units();
+    $self->dump() if $self->opts->verbose >= 2;;
   }
 }
 

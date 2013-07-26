@@ -10,7 +10,7 @@ sub check {
   $self->add_info(sprintf 'sensor %d (%s) has status %s, %dC',
       $self->{unitSensorIndex}, $self->{unitSensorType},
       $self->{unitSensorStatus}, $self->{unitSensorValue});
-  $self->{runtime}->{plugin}->add_perfdata(
+  $self->add_perfdata(
     label => sprintf('temp_%d_%d', $self->{unitSensorUnit},
         $self->{unitSensorIndex}),
     value => $self->{unitSensorValue},
