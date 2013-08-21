@@ -26,12 +26,12 @@ sub init {
   my %params = @_;
   $self->{cmcIIIUnitStatus} =
       $self->get_snmp_object('RITTAL-CMC-III-MIB', 'cmcIIIUnitStatus');
-  if (! $self->{cmcTcMibCondition}) {
+  if (! $self->{cmcIIIUnitStatus}) {
     $self->add_message(CRITICAL,
         'snmpwalk returns no health data (rittal-cmc-mib)');
   }
   foreach (qw(cmcIIIUnitType cmcIIIUnitSerial cmcIIIUnitProd cmcIIISetTempUnit
-      cmcIIIOverallDevStatus cmcIIINumberOfDevs cmcIIINumberOfVars)) {
+      cmcIIIOverallDevStatus cmcIIINumberOfDevs cmcIIINumberOfVars cmcIIIOverallMsgStatus)) {
     $self->{$_} =
         $self->get_snmp_object('RITTAL-CMC-III-MIB', $_);
   }
@@ -94,9 +94,9 @@ sub check {
     my $info = sprintf 'cmc-tc has %d devices connected, has status %s',
         $self->{cmcIIINumberOfDevs}, $self->{cmcIIIOverallDevStatus};
     $self->add_info($info);
-    if ($self->{cmcIIIOverallDevStatus} ne 'ok') {
+    if ($self->{cmcIIIOverallMsgStatus} ne 'ok') {
       $self->add_message(CRITICAL, sprintf 'general status is %s',
-          $self->{cmcIIIOverallDevStatus});
+          $self->{cmcIIIOverallMsgStatus});
     } else {
       $self->add_message(OK, $info);
     }

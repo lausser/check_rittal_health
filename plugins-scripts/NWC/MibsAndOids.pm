@@ -517,6 +517,11 @@ $NWC::Device::mibs_and_oids = {
 
     cmcIIIMsgInfo => '1.3.6.1.4.1.2606.7.4.3.1',
     cmcIIIOverallMsgStatus => '1.3.6.1.4.1.2606.7.4.3.1.1.0',
+    cmcIIIOverallMsgStatusDefinition => {
+      1 => 'ok',
+      2 => 'warning',
+      3 => 'alarm',
+    },
     cmcIIINumberOfMsgs => '1.3.6.1.4.1.2606.7.4.3.1.2.0',
     cmcIIILastChangeOverallMsgStatus => '1.3.6.1.4.1.2606.7.4.3.1.3.0',
     cmcIIILastChangeNumberOfMsgs => '1.3.6.1.4.1.2606.7.4.3.1.4.0',
