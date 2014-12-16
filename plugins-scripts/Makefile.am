@@ -12,15 +12,14 @@ VPATH=$(top_srcdir) $(top_srcdir)/plugins-scripts $(top_srcdir)/plugins-scripts/
 libexec_SCRIPTS=check_rittal_health
 MY_MODULES=
 EXTRA_MODULES=\
-  Nagios/MiniPlugin.pm \
-  NWC/Rittal/CMCII/TemperatureSensor.pm \
-  NWC/Rittal/CMCII/Sensor.pm \
-  NWC/Rittal/CMCII/Unit.pm \
-  NWC/Rittal/CMCII.pm \
-  NWC/Rittal/CMCIII.pm \
-  NWC/Rittal.pm \
-  NWC/MibsAndOids.pm \
-  NWC/Device.pm
+  Classes/Rittal/CMCII/Sensor.pm \
+  Classes/Rittal/CMCII/TemperatureSensor.pm \
+  Classes/Rittal/CMCII/Unit.pm \
+  Classes/Rittal/CMCII.pm \
+  Classes/Rittal/CMCIII.pm \
+  Classes/Rittal.pm \
+  Classes/MibsAndOids.pm \
+  Classes/Device.pm
 EXTRA_DIST=check_rittal_health.pl $(EXTRA_MODULES)
 
 CLEANFILES=$(libexec_SCRIPTS)

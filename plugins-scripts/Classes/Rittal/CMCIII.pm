@@ -1,25 +1,6 @@
-package NWC::Rittal::CMCIII;
-our @ISA = qw(NWC::Rittal);
-
+package Classes::Rittal::CMCIII;
 use strict;
-use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
-
-sub new {
-  my $class = shift;
-  my %params = @_;
-  my $self = {
-    devices => [],
-    timers => [],
-    variables => [],
-    messages => [],
-    blacklisted => 0,
-    info => undef,
-    extendedinfo => undef,
-  };
-  bless $self, $class;
-  $self->init(%params);
-  return $self;
-}
+our @ISA = qw(Classes::Rittal);
 
 sub init {
   my $self = shift;
@@ -27,8 +8,7 @@ sub init {
   $self->{cmcIIIUnitStatus} =
       $self->get_snmp_object('RITTAL-CMC-III-MIB', 'cmcIIIUnitStatus');
   if (! $self->{cmcIIIUnitStatus}) {
-    $self->add_message(CRITICAL,
-        'snmpwalk returns no health data (rittal-cmc-mib)');
+    $self->add_critical('snmpwalk returns no health data (rittal-cmc-mib)');
   }
   foreach (qw(cmcIIIUnitType cmcIIIUnitSerial cmcIIIUnitProd cmcIIISetTempUnit
       cmcIIIOverallDevStatus cmcIIINumberOfDevs cmcIIINumberOfVars cmcIIIOverallMsgStatus)) {
@@ -37,22 +17,18 @@ sub init {
   }
   foreach ($self->get_snmp_table_objects(
      'RITTAL-CMC-III-MIB', 'cmcIIIDevTable')) {
-    my $dev = NWC::Rittal::CMCIII::Device->new(%{$_});
+    my $dev = Classes::Rittal::CMCIII::Device->new(%{$_});
     if ($self->filter_name($dev->{cmcIIIDevIndex})) {
       push(@{$self->{devices}}, $dev);
     }
   }
   foreach ($self->get_snmp_table_objects(
      'RITTAL-CMC-III-MIB', 'cmcIIIVarTable')) {
-    my $var = NWC::Rittal::CMCIII::Variable->new(%{$_});
+    my $var = Classes::Rittal::CMCIII::Variable->new(%{$_});
     if ($self->filter_name($var->{cmcIIIVarDeviceIndex})) {
       push(@{$self->{variables}}, $var);
     }
   }
-  #foreach ($self->get_snmp_table_objects(
-  #   'RITTAL-CMC-III-MIB', 'cmcIIIMsgTable')) {
-  #  push(@{$self->{messages}}, $_);
-  #}
   $self->assign();
   $self->check();
 }
@@ -84,21 +60,21 @@ sub check {
       #printf "dev%d\n", $unit if $self->{"unit$unit"}->{cmcTcUnitStatus} ne "notAvail";
       printf "%s\n", Data::Dumper::Dumper($_);
     }
-    $self->add_message(OK, "have fun");
+    $self->add_ok("have fun");
   } elsif ($self->mode =~ /device::variables::list/) {
     foreach (@{$self->{variables}}) {
       printf "%s\n", Data::Dumper::Dumper($_);
     }
-    $self->add_message(OK, "have fun");
+    $self->add_ok("have fun");
   } else {
     my $info = sprintf 'cmc-tc has %d devices connected, has status %s',
         $self->{cmcIIINumberOfDevs}, $self->{cmcIIIOverallDevStatus};
     $self->add_info($info);
     if ($self->{cmcIIIOverallMsgStatus} ne 'ok') {
-      $self->add_message(CRITICAL, sprintf 'general status is %s',
+      $self->add_critical(sprintf 'general status is %s',
           $self->{cmcIIIOverallMsgStatus});
     } else {
-      $self->add_message(OK, $info);
+      $self->add_ok();
     }
     $self->check_devices();
     $self->dump() if $self->opts->verbose >= 2;;
@@ -126,8 +102,8 @@ sub dump {
   }
 }
 
-package NWC::Rittal::CMCIII::Device;
-our @ISA = qw(NWC::Rittal::CMCIII);
+package Classes::Rittal::CMCIII::Device;
+our @ISA = qw(Classes::Rittal::CMCIII);
 
 use strict;
 use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
@@ -149,7 +125,7 @@ sub new {
   delete $self->{indices};
   bless $self, $class;
   #if ($self->{unitSensorType} eq 'temperature') {
-  #  bless $self, 'NWC::Rittal::CMCII::TemperatureSensor';
+  #  bless $self, 'Classes::Rittal::CMCII::TemperatureSensor';
   #}
   #$self->init(%params);
   return $self;
@@ -181,8 +157,8 @@ sub dump {
 }
 
 
-package NWC::Rittal::CMCIII::Variable;
-our @ISA = qw(NWC::Rittal::CMCIII);
+package Classes::Rittal::CMCIII::Variable;
+our @ISA = qw(Classes::Rittal::CMCIII);
 
 use strict;
 use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
@@ -205,7 +181,7 @@ sub new {
   delete $self->{indices};
   bless $self, $class;
   #if ($self->{unitSensorType} eq 'temperature') {
-  #  bless $self, 'NWC::Rittal::CMCII::TemperatureSensor';
+  #  bless $self, 'Classes::Rittal::CMCII::TemperatureSensor';
   #}
   #$self->init(%params);
   return $self;
