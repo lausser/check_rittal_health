@@ -1,4 +1,415 @@
-$NWC::Device::mibs_and_oids = {
+#! /usr/bin/perl -w
+
+package NWC::Rittal::CMCII::Sensor;
+
+our @ISA = qw(NWC::Rittal::CMCII);
+
+use strict;
+use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
+
+sub new {
+  my $class = shift;
+  my %params = @_;
+  my $self = {
+    blacklisted => 0,
+    info => undef,
+    extendedinfo => undef,
+  };
+  foreach my $param (keys %params) {
+    if (exists $params{$param}) {
+      $self->{$param} = $params{$param};
+    }
+  }
+  bless $self, $class;
+  if ($self->{unitSensorType} eq 'temperature') {
+    bless $self, 'NWC::Rittal::CMCII::TemperatureSensor';
+  }
+  #$self->init(%params);
+  return $self;
+}
+
+
+sub check {
+  my $self = shift;
+  $self->add_info(sprintf 'sensor %d (%s) has status %s',
+      $self->{unitSensorIndex}, $self->{unitSensorType},
+      $self->{unitSensorStatus});
+}
+
+sub dump {
+  my $self = shift;
+  printf "[SENSOR_%d_%d]\n", 
+      $self->{unitSensorUnit},
+      $self->{unitSensorIndex};
+  foreach (qw(unitSensorIndex unitSensorText unitSensorStatus
+      unitSensorType unitSensorValue unitSensorSetLow
+      unitSensorSetWarn unitSensorSetHigh)) {
+    printf "%s: %s\n", $_, $self->{$_};
+  }
+  printf "info: %s\n", $self->{info};
+  printf "\n";
+
+}
+
+sub list {
+  my $self = shift;
+  printf "unit%d sensor%d (%s)\n", $self->{unitSensorUnit}, $self->{unitSensorIndex}, $self->{unitSensorText} if $self->{unitSensorType} ne "notAvail";
+}
+
+
+package NWC::Rittal::CMCII::TemperatureSensor;
+
+our @ISA = qw(NWC::Rittal::CMCII::Sensor);
+
+use strict;
+use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
+
+sub check {
+  my $self = shift;
+  $self->add_info(sprintf 'sensor %d (%s) has status %s, %dC',
+      $self->{unitSensorIndex}, $self->{unitSensorType},
+      $self->{unitSensorStatus}, $self->{unitSensorValue});
+  $self->add_perfdata(
+    label => sprintf('temp_%d_%d', $self->{unitSensorUnit},
+        $self->{unitSensorIndex}),
+    value => $self->{unitSensorValue},
+    warning => $self->{unitSensorSetWarn},
+    critical => $self->{unitSensorSetHigh},
+  );
+}
+
+
+package NWC::Rittal::CMCII::Unit;
+our @ISA = qw(NWC::Rittal::CMCII);
+
+use strict;
+use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
+
+sub new {
+  my $class = shift;
+  my %params = @_;
+  my $self = {
+    sensors => [],
+    blacklisted => 0,
+    info => undef,
+    extendedinfo => undef,
+  };
+  bless $self, $class;
+  $self->init(%params);
+  return $self;
+}
+
+sub init {
+  my $self = shift;
+  my %params = @_;
+  my $unit = $params{unitnr};
+  $self->{cmcTcUnitNumber} = $unit;
+  $self->{cmcTcUnitTypeOfDevice} =
+      $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'TypeOfDevice');
+  $self->{cmcTcUnitText} =
+      $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'Text');
+  $self->{cmcTcUnitStatus} =
+      $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'Status');
+  $self->{cmcTcUnitNumberOfSensors} =
+      $self->get_snmp_object('RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'NumberOfSensors');
+#printf "%s\n", Data::Dumper::Dumper($self);
+  # although unit4 is defined in the mib, it doesn't exist in reality
+
+  $self->add_info(sprintf 'unit %d has status %s',
+      $unit, $self->{cmcTcUnitStatus});
+  if ($self->{cmcTcUnitStatus} ne "not Avail") {
+    foreach ($self->get_snmp_table_objects(
+       'RITTAL-CMC-TC-MIB', 'cmcTcUnit'.$unit.'SensorTable')) {
+      foreach my $k (keys %{$_}) {
+        if ($k =~ /unit$unit/) {
+          (my $nokey = $k) =~ s/unit$unit/unit/g;
+          $_->{$nokey} = $_->{$k};
+          #delete $_->{$k};
+        }
+      }
+      $_->{unitSensorUnit} = $unit;
+#printf "%s\n", Data::Dumper::Dumper($_);
+      push(@{$self->{sensors}},
+          NWC::Rittal::CMCII::Sensor->new(%{$_}));
+    }
+  }
+}
+
+sub check {
+  my $self = shift;
+  my %params = @_;
+  foreach (@{$self->{sensors}}) {
+    $_->check();
+  }
+}
+
+sub dump {
+  my $self = shift;
+  printf "[CMC-TC-UNIT-%d]\n", $self->{cmcTcUnitNumber};
+  foreach (qw(cmcTcUnitTypeOfDevice cmcTcUnitText cmcTcUnitStatus cmcTcUnitNumberOfSensors)) {
+    printf "%s: %s\n", $_, $self->{$_};
+  }
+  printf "info: %s\n", $self->{info};
+  printf "\n";
+  foreach (@{$self->{sensors}}) {
+    $_->dump();
+  }
+}
+
+sub list {
+  my $self = shift;
+  foreach (sort {$a->{unitSensorIndex} <=> $b->{unitSensorIndex}} @{$self->{sensors}}) {
+    $_->list();
+  }
+}
+
+
+package Classes::Rittal::CMCII;
+use strict;
+our @ISA = qw(Classes::Rittal);
+
+
+sub init {
+  my $self = shift;
+  $self->get_snmp_objects('RITTAL-CMC-TC-MIB',
+      qw(cmcTcMibCondition cmcTcStatusDeviceCMC cmcTcUnitsConnected));
+  if (! $self->{cmcTcMibCondition}) {
+    $self->add_critical('snmpwalk returns no health data (rittal-cmc-mib)');
+  }
+  if ($self->mode =~ /device::hardware::health/) {
+    $self->analyze_and_check_unit_subsystem('Classes::Rittal::CMCII::Components::UnitSubsystem');
+  }
+}
+
+
+
+package Classes::Rittal::CMCIII;
+use strict;
+our @ISA = qw(Classes::Rittal);
+
+sub init {
+  my $self = shift;
+  my %params = @_;
+  $self->{cmcIIIUnitStatus} =
+      $self->get_snmp_object('RITTAL-CMC-III-MIB', 'cmcIIIUnitStatus');
+  if (! $self->{cmcIIIUnitStatus}) {
+    $self->add_critical('snmpwalk returns no health data (rittal-cmc-mib)');
+  }
+  foreach (qw(cmcIIIUnitType cmcIIIUnitSerial cmcIIIUnitProd cmcIIISetTempUnit
+      cmcIIIOverallDevStatus cmcIIINumberOfDevs cmcIIINumberOfVars cmcIIIOverallMsgStatus)) {
+    $self->{$_} =
+        $self->get_snmp_object('RITTAL-CMC-III-MIB', $_);
+  }
+  foreach ($self->get_snmp_table_objects(
+     'RITTAL-CMC-III-MIB', 'cmcIIIDevTable')) {
+    my $dev = Classes::Rittal::CMCIII::Device->new(%{$_});
+    if ($self->filter_name($dev->{cmcIIIDevIndex})) {
+      push(@{$self->{devices}}, $dev);
+    }
+  }
+  foreach ($self->get_snmp_table_objects(
+     'RITTAL-CMC-III-MIB', 'cmcIIIVarTable')) {
+    my $var = Classes::Rittal::CMCIII::Variable->new(%{$_});
+    if ($self->filter_name($var->{cmcIIIVarDeviceIndex})) {
+      push(@{$self->{variables}}, $var);
+    }
+  }
+  $self->assign();
+  $self->check();
+}
+
+sub assign {
+  my $self = shift;
+  foreach my $dev (@{$self->{devices}}) {
+    $dev->{variables} = [];
+    foreach my $var (
+        sort {$a->{cmcIIIVarDeviceIndex} <=> $b->{cmcIIIVarDeviceIndex}}
+        @{$self->{variables}}) {
+      if ($dev->{cmcIIIDevIndex} eq $var->{cmcIIIVarDeviceIndex}) {
+        push(@{$dev->{variables}}, $var);
+      }
+    }
+    @{$dev->{variables}} = sort {
+        $a->{cmcIIIVarIndex} <=> $b->{cmcIIIVarIndex} 
+    } @{$dev->{variables}};
+  }
+  @{$self->{devices}} = sort {
+      $a->{cmcIIIDevIndex} <=> $b->{cmcIIIDevIndex}
+  } @{$self->{devices}};
+}
+
+sub check {
+  my $self = shift;
+  if ($self->mode =~ /device::devices::list/) {
+    foreach (@{$self->{devices}}) {
+      #printf "dev%d\n", $unit if $self->{"unit$unit"}->{cmcTcUnitStatus} ne "notAvail";
+      printf "%s\n", Data::Dumper::Dumper($_);
+    }
+    $self->add_ok("have fun");
+  } elsif ($self->mode =~ /device::variables::list/) {
+    foreach (@{$self->{variables}}) {
+      printf "%s\n", Data::Dumper::Dumper($_);
+    }
+    $self->add_ok("have fun");
+  } else {
+    my $info = sprintf 'cmc-tc has %d devices connected, has status %s',
+        $self->{cmcIIINumberOfDevs}, $self->{cmcIIIOverallDevStatus};
+    $self->add_info($info);
+    if ($self->{cmcIIIOverallMsgStatus} ne 'ok') {
+      $self->add_critical(sprintf 'general status is %s',
+          $self->{cmcIIIOverallMsgStatus});
+    } else {
+      $self->add_ok();
+    }
+    $self->check_devices();
+    $self->dump() if $self->opts->verbose >= 2;;
+  }
+}
+
+sub check_devices {
+  my $self = shift;
+  foreach (@{$self->{devices}}) {
+    $_->check();
+  }
+}
+
+sub dump {
+  my $self = shift;
+  printf "[CMC-TC]\n";
+  foreach (qw(cmcIIIUnitType cmcIIIUnitSerial cmcIIIUnitProd cmcIIISetTempUnit
+      cmcIIIOverallDevStatus cmcIIINumberOfDevs cmcIIINumberOfVars)) {
+    printf "%s: %s\n", $_, $self->{$_};
+  }
+  printf "info: %s\n", $self->{info};
+  printf "\n";
+  foreach (@{$self->{devices}}) {
+    $_->dump();
+  }
+}
+
+package Classes::Rittal::CMCIII::Device;
+our @ISA = qw(Classes::Rittal::CMCIII);
+
+use strict;
+use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
+
+sub new {
+  my $class = shift;
+  my %params = @_;
+  my $self = {
+    blacklisted => 0,
+    info => undef,
+    extendedinfo => undef,
+  };
+  foreach my $param (keys %params) {
+    if (exists $params{$param}) {
+      $self->{$param} = $params{$param};
+    }
+  }
+  $self->{cmcIIIDevIndex} = $self->{indices}->[0];
+  delete $self->{indices};
+  bless $self, $class;
+  #if ($self->{unitSensorType} eq 'temperature') {
+  #  bless $self, 'Classes::Rittal::CMCII::TemperatureSensor';
+  #}
+  #$self->init(%params);
+  return $self;
+}
+
+
+sub check {
+  my $self = shift;
+  $self->add_info(sprintf 'device %d (%s) has status %s',
+      $self->{cmcIIIDevIndex}, $self->{cmcIIIDevName},
+      $self->{cmcIIIDevStatus});
+  foreach (@{$self->{variables}}) {
+    $_->check();
+  }
+}
+
+sub dump {
+  my $self = shift;
+  printf "[DEVICE_%d]\n",
+      $self->{cmcIIIDevIndex};
+  foreach (grep /^cmcIII/, keys %{$self}) {
+    printf "%s: %s\n", $_, $self->{$_};
+  }
+  printf "info: %s\n", $self->{info};
+  foreach (@{$self->{variables}}) {
+    $_->dump();
+  }
+  printf "\n";
+}
+
+
+package Classes::Rittal::CMCIII::Variable;
+our @ISA = qw(Classes::Rittal::CMCIII);
+
+use strict;
+use constant { OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 };
+
+sub new {
+  my $class = shift;
+  my %params = @_;
+  my $self = {
+    blacklisted => 0,
+    info => undef,
+    extendedinfo => undef,
+  };
+  foreach my $param (keys %params) {
+    if (exists $params{$param}) {
+      $self->{$param} = $params{$param};
+    }
+  }
+  $self->{cmcIIIVarDeviceIndex} = $self->{indices}->[0];
+  $self->{cmcIIIVarIndex} = $self->{indices}->[1];
+  delete $self->{indices};
+  bless $self, $class;
+  #if ($self->{unitSensorType} eq 'temperature') {
+  #  bless $self, 'Classes::Rittal::CMCII::TemperatureSensor';
+  #}
+  #$self->init(%params);
+  return $self;
+}
+
+
+sub check {
+  my $self = shift;
+  $self->add_info(sprintf 'var %d/%d (%s) has status %s',
+      $self->{cmcIIIVarDeviceIndex}, $self->{cmcIIIVarIndex},
+      $self->{cmcIIIVarName}, $self->{cmcIIIVarValueStr});
+}
+
+sub dump {
+  my $self = shift;
+  printf "[VARIABLE_%d_%d]\n",
+      $self->{cmcIIIVarDeviceIndex}, $self->{cmcIIIVarIndex};
+  foreach (grep /^cmcIIIVar/, keys %{$self}) {
+    printf "%s: %s\n", $_, $self->{$_};
+  }
+  printf "info: %s\n", $self->{info};
+  printf "\n";
+
+}
+package Classes::Rittal;
+our @ISA = qw(Classes::Device);
+use strict;
+
+sub init {
+  my $self = shift;
+  if ($self->{productname} =~ /Rittal CMC.*III/) {
+    bless $self, 'Classes::Rittal::CMCIII';
+    $self->debug('using Classes::Rittal::CMCIII');
+  } elsif ($self->{productname} =~ /Rittal CMC/) {
+    bless $self, 'Classes::Rittal::CMCII';
+    $self->debug('using Classes::Rittal::CMCII');
+  } else {
+    $self->no_such_model();
+  }
+  $self->init();
+}
+
+$GLPlugin::SNMP::mibs_and_oids = {
   'MIB-II' => {
       sysDescr => '1.3.6.1.2.1.1.1',
       sysUpTime => '1.3.6.1.2.1.1.3',
@@ -552,8 +963,8 @@ $NWC::Device::mibs_and_oids = {
     cmcIIISmsQueue => '1.3.6.1.4.1.2606.7.5.2.0',
   },
 };
-# cHsrpGrpStandbyStateDefinition => 'CISCO-HSRP-MIB::HsrpState',
-$NWC::Device::definitions = {
+
+$GLPlugin::SNMP::definitions = {
   'RITTAL-CMC-TC-MIB' => {
     cmcTcStatusDeviceCMC => {
       1 => 'failed',
@@ -685,7 +1096,7 @@ $NWC::Device::definitions = {
   },
 };
 
-$NWC::Device::oids = {
+$GLPlugin::SNMP::oids = {
   'RITTAL-CMC-III-PRODUCTS-MIB' => {
     rittal => '1.3.6.1.4.1.2606',
     cmcIII => '1.3.6.1.4.1.2606.7',
@@ -749,4 +1160,275 @@ $NWC::Device::oids = {
     cmcIIIProductChassisGateSensorDoorMag => '1.3.6.1.4.1.2606.7.7.4.402',
   },
 };
+
+package Classes::Device;
+our @ISA = qw(GLPlugin::SNMP);
+use strict;
+
+sub classify {
+  my $self = shift;
+  if (! ($self->opts->hostname || $self->opts->snmpwalk)) {
+    $self->add_unknown('either specify a hostname or a snmpwalk file');
+  } else {
+    $self->check_snmp_and_model();
+    if ($self->opts->servertype) {
+      $self->{productname} = 'storeever' if $self->opts->servertype eq 'storeever';
+    }
+    if (! $self->check_messages()) {
+      if ($self->opts->verbose && $self->opts->verbose) {
+        printf "I am a %s\n", $self->{productname};
+      }
+      if ($self->opts->mode =~ /^my-/) {
+        $self->load_my_extension();
+      } elsif ($self->{productname} =~ /Rittal/i) {
+        bless $self, 'Classes::Rittal';
+        $self->debug('using Classes::Rittal');
+      } else {
+        if (my $class = $self->discover_suitable_class()) {
+          bless $self, $class;
+          $self->debug('using '.$class);
+        } else {
+          bless $self, 'Classes::Generic';
+          $self->debug('using Classes::Generic');
+        }
+      }
+    }
+  }
+  return $self;
+}
+
+
+package Classes::Generic;
+our @ISA = qw(Classes::Device);
+use strict;
+
+sub init {
+  my $self = shift;
+  if ($self->mode =~ /something specific/) {
+  } else {
+    bless $self, 'GLPlugin::SNMP';
+    $self->no_such_mode();
+  }
+}
+
+package main;
+#! /usr/bin/perl
+
+use strict;
+use File::Basename;
+
+my $plugin = Classes::Device->new(
+    shortname => '',
+    usage => 'Usage: %s [ -v|--verbose ] [ -t <timeout> ] '.
+        '--mode <what-to-do> '.
+        '--hostname <network-component> --community <snmp-community>'.
+        '  ...]',
+    version => '2.0.0.1',
+    blurb => 'This plugin checks various parameters of rittal cmc ',
+    url => 'http://labs.consol.de/nagios/check_rittal_health',
+    timeout => 60,
+    plugin => basename($0),
+);
+
+$plugin->add_mode(
+    internal => 'device::uptime',
+    spec => 'uptime',
+    alias => undef,
+    help => 'Check the uptime of the device',
+);
+$plugin->add_mode(
+    internal => 'device::sensors::health',
+    spec => 'hardware-health',
+    alias => ['overall-health'],
+    help => 'Check the state of the sensors',
+);
+$plugin->add_mode(
+    internal => 'device::units::list',
+    spec => 'list-units',
+    alias => undef,
+    help => 'Show the units of the cmc ii and update the name cache',
+);
+$plugin->add_mode(
+    internal => 'device::sensors::list',
+    spec => 'list-sensors',
+    alias => undef,
+    help => 'Show the sensors of the cmc ii and update the name cache',
+);
+$plugin->add_mode(
+    internal => 'device::devices::list',
+    spec => 'list-devices',
+    alias => undef,
+    help => 'Show the devices of the cmc ii and update the name cache',
+);
+$plugin->add_arg(
+    spec => 'blacklist|b=s',
+    help => '--blacklist
+   Blacklist some (missing/failed) components',
+    required => 0,
+    default => '',
+);
+$plugin->add_arg(
+    spec => 'hostname|H=s',
+    help => '--hostname
+   Hostname or IP-address of the ups',
+    required => 0,
+);
+$plugin->add_snmp_args();
+$plugin->add_arg(
+    spec => 'mode=s',
+    help => "--mode
+   A keyword which tells the plugin what to do",
+    required => 1,
+);
+$plugin->add_arg(
+    spec => 'name=s',
+    help => "--name
+   The name of an interface (ifDescr)",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'drecksptkdb=s',
+    help => "--drecksptkdb
+   This parameter must be used instead of --name, because Devel::ptkdb is stealing the latter from the command line",
+    aliasfor => "name",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'regexp',
+    help => "--regexp
+   A flag indicating that --name is a regular expression",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'units=s',
+    help => "--units
+   One of %, B, KB, MB, GB, Bit, KBi, MBi, GBi. (used for e.g. mode interface-usage)",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'report=s',
+    help => "--report
+   Can be used to shorten the output",
+    required => 0,
+    default => 'long',
+);
+$plugin->add_arg(
+    spec => 'lookback=s',
+    help => "--lookback
+   The amount of time you want to look back when calculating average rates.
+   Use it for mode interface-errors or interface-usage. Without --lookback
+   the time between two runs of check_nwc_health is the base for calculations.
+   If you want your checkresult to be based for example on the past hour,
+   use --lookback 3600. ",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'critical=s',
+    help => '--critical
+   The critical threshold',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'warning=s',
+    help => '--warning
+   The warning threshold',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'warningx=s%',
+    help => '--warningx
+   The extended warning thresholds',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'criticalx=s%',
+    help => '--criticalx
+   The extended critical thresholds',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'mitigation=s',
+    help => "--mitigation
+   The parameter allows you to change a critical error to a warning.",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'selectedperfdata=s',
+    help => "--selectedperfdata
+   The parameter allows you to limit the list of performance data. It's a perl regexp.
+   Only matching perfdata show up in the output",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'negate=s%',
+    help => "--negate
+   The parameter allows you to map exit levels, such as warning=critical",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'with-mymodules-dyn-dir=s',
+    help => '--with-mymodules-dyn-dir
+   A directory where own extensions can be found',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'servertype=s',
+    help => '--servertype
+   The type of the network device: cisco (default). Use it if auto-detection
+   is not possible',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'statefilesdir=s',
+    help => '--statefilesdir
+   An alternate directory where the plugin can save files',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'snmpwalk=s',
+    help => '--snmpwalk
+   A file with the output of a snmpwalk (used for simulation)
+   Use it instead of --hostname',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'oids=s',
+    help => '--oids
+   A list of oids which are downloaded and written to a cache file.
+   Use it together with --mode oidcache',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'offline:i',
+    help => '--offline
+   The maximum number of seconds since the last update of cache file before
+   it is considered too old',
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'multiline',
+    help => '--multiline
+   Multiline output',
+    required => 0,
+);
+
+$plugin->getopts();
+$plugin->classify();
+$plugin->validate_args();
+
+if (! $plugin->check_messages()) {
+  $plugin->init();
+  if (! $plugin->check_messages()) {
+    $plugin->add_ok($plugin->get_summary())
+        if $plugin->get_summary();
+    $plugin->add_ok($plugin->get_extendedinfo(" "))
+        if $plugin->get_extendedinfo();
+  }
+}
+my ($code, $message) = $plugin->opts->multiline ?
+    $plugin->check_messages(join => "\n", join_all => ', ') :
+    $plugin->check_messages(join => ', ', join_all => ', ');
+$message .= sprintf "\n%s\n", $plugin->get_info("\n")
+    if $plugin->opts->verbose >= 1;
+$plugin->nagios_exit($code, $message);
 
