@@ -10,8 +10,10 @@ sub init {
   if (! $self->{cmcTcMibCondition}) {
     $self->add_critical('snmpwalk returns no health data (rittal-cmc-mib)');
   }
-  if ($self->mode =~ /device::hardware::health/) {
-    $self->analyze_and_check_unit_subsystem('Classes::Rittal::CMCII::Components::UnitSubsystem');
+  if ($self->mode =~ /device::(units|sensors)/) {
+    $self->analyze_and_check_unit_subsystem('Classes::Rittal::CMCII::Component::UnitSubsystem');
+  } else {
+    $self->no_such_mode();
   }
 }
 

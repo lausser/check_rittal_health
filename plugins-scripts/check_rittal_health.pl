@@ -69,7 +69,13 @@ $plugin->add_arg(
 $plugin->add_arg(
     spec => 'name=s',
     help => "--name
-   The name of an interface (ifDescr)",
+   The name (number) of a unit",
+    required => 0,
+);
+$plugin->add_arg(
+    spec => 'name2=s',
+    help => "--name2
+   The name (number) of a sensor",
     required => 0,
 );
 $plugin->add_arg(

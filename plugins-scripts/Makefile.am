@@ -12,9 +12,10 @@ VPATH=$(top_srcdir) $(top_srcdir)/plugins-scripts $(top_srcdir)/plugins-scripts/
 libexec_SCRIPTS=check_rittal_health
 MY_MODULES=
 EXTRA_MODULES=\
-  Classes/Rittal/CMCII/Sensor.pm \
-  Classes/Rittal/CMCII/TemperatureSensor.pm \
-  Classes/Rittal/CMCII/Unit.pm \
+  GLPlugin.pm \
+  GLPluginSNMP.pm \
+  Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
+  Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
   Classes/Rittal/CMCII.pm \
   Classes/Rittal/CMCIII.pm \
   Classes/Rittal.pm \
@@ -40,9 +41,10 @@ AM_INSTALL_PROGRAM_FLAGS=@INSTALL_OPTS@
 
 $(libexec_SCRIPTS) : $(EXTRA_DIST)
 	$(ECHO) "#! #PERL# -w" | $(AWK) -f ./subst > $@
+	$(ECHO) "# nagios: +epn" >> $@
 	$(ECHO) >> $@
 	for m in ${EXTRA_MODULES}; do \
-		$(SED) -e 's/^1;//g' < $$m | $(AWK) -f ./subst | $(GREP) -v "use Nagios::Plugin" >> $@; \
+		$(SED) -e 's/^1;//g' < $$m | $(SED) -e '/^__END__/,$$d' | $(AWK) -f ./subst | $(GREP) -v "use Nagios::Plugin" >> $@; \
 	done
 	$(ECHO) "package main;" >> $@
 	$(CAT) check_rittal_health.pl | $(AWK) -f ./subst >> $@
