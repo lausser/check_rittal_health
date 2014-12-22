@@ -1,3 +1,8 @@
+$GLPlugin::SNMP::mib_ids = {
+  'RITTAL-CMC-TC-MIB' => '1.3.6.1.4.1.2606.4',
+  'RITTAL-CMC-III-MIB' => '1.3.6.1.4.1.2606.7',
+};
+
 $GLPlugin::SNMP::mibs_and_oids = {
   'MIB-II' => {
       sysDescr => '1.3.6.1.2.1.1.1',
