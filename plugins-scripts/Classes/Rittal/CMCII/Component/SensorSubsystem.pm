@@ -14,6 +14,9 @@ sub check {
   if (! $self->check_messages) {
     $self->clear_all();
     $self->add_ok("all sensors are within their range");
+  } else {
+
+    $self->clear_all();
   }
 }
 
