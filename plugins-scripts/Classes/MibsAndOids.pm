@@ -8,6 +8,12 @@ $GLPlugin::SNMP::mibs_and_oids = {
     cmcTcMibMajRev => '1.3.6.1.4.1.2606.4.1.1.0',
     cmcTcMibMinRev => '1.3.6.1.4.1.2606.4.1.2.0',
     cmcTcMibCondition => '1.3.6.1.4.1.2606.4.1.3.0',
+    cmcTcMibConditionDefinition => {
+      2 => 'ok',
+      3 => 'minor',
+      4 => 'major',
+      5 => 'changed',
+    },
     cmcTcStatus => '1.3.6.1.4.1.2606.4.2',
     cmcTcStatusDeviceCMC => '1.3.6.1.4.1.2606.4.2.1.0',
     cmcTcStatusDeviceCMCDefinition => 'RITTAL-CMC-TC-MIB::cmcTcStatusDeviceCMC',

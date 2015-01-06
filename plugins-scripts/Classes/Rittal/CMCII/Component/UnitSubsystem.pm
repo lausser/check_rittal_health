@@ -30,6 +30,10 @@ sub check {
     foreach (@{$self->{units}}) {
       $_->check();
     }
+    if (! $self->check_messages) {
+      $self->clear_all();
+      $self->add_ok("all units are working fine");
+    }
   }
 }
 
