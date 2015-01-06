@@ -35,7 +35,8 @@ sub finish {
       delete $self->{$_};
     }
   }
-  if ($self->{unitSensorType} =~ /^(temp1LCP|rpm\d+LCP|contrTemp\d+|valveActual|fanSpeed|waterFlow|waterOutTemp|waterInTemp|temp\d+LCP|airTemp\d+LCP|temp\d+LCP)/) {
+  my @perftypes = qw(airFlow temperature humidity voltage rpm\d+LCP airTemp\d+LCP temp\d+LCP waterInTemp waterOutTemp waterFlow fanSpeed contrTemp2 frequencyPSM voltagePSM voltStatusPSM amperePSM kWPSM kWhPSM kWhTempPSM temperatureWL temperature1WL humidityWL);
+  if (grep { $self->{unitSensorType} =~ /^$_$/ } @perftypes) {
     bless $self, "Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor::Perf";
   }
 }
