@@ -92,7 +92,7 @@ package Classes::Rittal::CMCIII::Device;
 our @ISA = qw(GLPlugin::SNMP::TableItem);
 use strict;
 
-sub finish [
+sub finish {
   my $self = shift;
   $self->{cmcIIIDevIndex} = $self->{indices}->[0];
 }
@@ -112,7 +112,7 @@ package Classes::Rittal::CMCIII::Variable;
 our @ISA = qw(GLPlugin::SNMP::TableItem);
 use strict;
 
-sub finish [
+sub finish {
   my $self = shift;
   $self->{cmcIIIVarDeviceIndex} = $self->{indices}->[0];
   $self->{cmcIIIVarIndex} = $self->{indices}->[1];

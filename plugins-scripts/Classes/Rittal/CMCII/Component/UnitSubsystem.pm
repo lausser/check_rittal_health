@@ -33,6 +33,8 @@ sub check {
     if (! $self->check_messages) {
       $self->clear_all();
       $self->add_ok("all units are working fine");
+    } else {
+      $self->clear_ok(); # show only faulted sensors
     }
   }
 }
