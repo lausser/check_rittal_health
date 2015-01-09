@@ -2,6 +2,9 @@
 # Changelog of the check_rittal_health plugin #
 #######################################
 
+2.1.1 - 2015-01-08
+fix cmctciii
+
 2.1.0 - 2015-01-06
 - Plugin nor uses GLPlugin.pm, rewrite CMCTCII
 

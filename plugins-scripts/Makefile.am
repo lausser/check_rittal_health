@@ -17,6 +17,8 @@ EXTRA_MODULES=\
   Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
   Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
   Classes/Rittal/CMCII.pm \
+  Classes/Rittal/CMCIII/Component/DeviceSubsystem.pm \
+  Classes/Rittal/CMCIII/Component/MessageSubsystem.pm \
   Classes/Rittal/CMCIII.pm \
   Classes/Rittal.pm \
   Classes/MibsAndOids.pm \
