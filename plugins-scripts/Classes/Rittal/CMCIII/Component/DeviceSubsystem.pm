@@ -48,7 +48,7 @@ sub check {
     }
     $self->add_ok("have fun");
   } elsif ($self->mode =~ /device::(units|sensors)/) {
-    my $info = sprintf 'cmc-tc has %d devices connected, has status %s',
+    my $info = sprintf 'cmc-tc has %d devices connected, device status is %s',
         $self->{cmcIIINumberOfDevs}, $self->{cmcIIIOverallDevStatus};
     $self->add_info($info);
     if ($self->{cmcIIIOverallDevStatus} ne 'ok') {
