@@ -842,7 +842,8 @@ sub check_snmp_and_model {
     my $tac = time;
     if (defined $sysUptime && defined $sysDescr) {
       # drecksschrott asa liefert negative werte
-      if (defined $snmpEngineTime && $snmpEngineTime > 0) {
+      # und drecksschrott socomec liefert: wrong type (should be INTEGER): NULL
+      if (defined $snmpEngineTime && $snmpEngineTime =~ /^\d+$/ && $snmpEngineTime > 0) {
         $self->{uptime} = $snmpEngineTime;
       } else {
         $self->{uptime} = $self->timeticks($sysUptime);
@@ -865,6 +866,14 @@ sub check_snmp_and_model {
       $GLPlugin::SNMP::session->close if $GLPlugin::SNMP::session;
     }
   }
+}
+
+sub mult_snmp_max_msg_size {
+  my $self = shift;
+  my $factor = shift || 10;
+  $self->debug(sprintf "raise maxmsgsize %d * %d", 
+      $factor, $GLPlugin::SNMP::session->max_msg_size());
+  $GLPlugin::SNMP::session->max_msg_size($factor * $GLPlugin::SNMP::session->max_msg_size()) if $GLPlugin::SNMP::session;
 }
 
 sub no_such_model {
@@ -1552,7 +1561,7 @@ sub get_entries {
       } else {
         $result = $self->get_entries_get_next(%params);
       }
-      if (! $result && $params{'-startindex'} !~ /\./) {
+      if (! $result && defined $params{'-startindex'} && $params{'-startindex'} !~ /\./) {
         # compound indexes cannot continue, as these two methods iterate numerically
         if ($GLPlugin::SNMP::session->error() =~ /tooBig/i) {
           $result = $self->get_entries_get_next_1index(%params);
