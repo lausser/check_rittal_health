@@ -4,16 +4,21 @@ SED=/bin/sed
 GREP=/bin/grep
 CAT=/bin/cat
 ECHO=/bin/echo
+if DISABLE_STANDALONE
+STANDALONE = no
+else
+STANDALONE = yes
+endif
 
 SUFFIXES = .pl .pm .sh
 
 VPATH=$(top_srcdir) $(top_srcdir)/plugins-scripts $(top_srcdir)/plugins-scripts/t
 
 libexec_SCRIPTS=check_rittal_health
-MY_MODULES=
+GL_MODULES=\
+  ../lib/Monitoring/GLPlugin.pm \
+  ../lib/Monitoring/GLPlugin/SNMP.pm
 EXTRA_MODULES=\
-  GLPlugin.pm \
-  GLPluginSNMP.pm \
   Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
   Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
   Classes/Rittal/CMCII.pm \
@@ -43,13 +48,18 @@ AM_INSTALL_PROGRAM_FLAGS=@INSTALL_OPTS@
 
 $(libexec_SCRIPTS) : $(EXTRA_DIST)
 	$(ECHO) "#! #PERL# -w" | $(AWK) -f ./subst > $@
-	$(ECHO) "# nagios: +epn" >> $@
+	$(ECHO) "# nagios: -epn" >> $@
 	$(ECHO) >> $@
+	if [ "${STANDALONE}" == "yes" ]; then \
+	        $(ECHO) i am standalone; \
+	        for m in ${GL_MODULES}; do \
+	                $(SED) -e 's/^1;//g' < $$m | $(SED) -e '/^__END__/,$$d' | $(AWK) -f ./subst >> $@; \
+	        done \
+	fi
 	for m in ${EXTRA_MODULES}; do \
-		$(SED) -e 's/^1;//g' < $$m | $(SED) -e '/^__END__/,$$d' | $(AWK) -f ./subst | $(GREP) -v "use Nagios::Plugin" >> $@; \
+	        $(SED) -e 's/^1;//g' < $$m | $(SED) -e '/^__END__/,$$d' | $(AWK) -f ./subst | $(GREP) -v "use Nagios::Plugin" >> $@; \
 	done
 	$(ECHO) "package main;" >> $@
-	$(CAT) check_rittal_health.pl | $(AWK) -f ./subst >> $@
+	$(CAT) $(libexec_SCRIPTS).pl | $(AWK) -f ./subst >> $@
 	chmod +x $@
-#| $(GREP) -v "use Nagios" >> $@;
 
