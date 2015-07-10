@@ -1,35 +1,25 @@
-###############################################
-# Changelog of the check_rittal_health plugin #
-###############################################
-
-2015-04-23 2.2.1.1
-- update GLPlugin[SNMP]
-
-2015-01-26 2.2.1
-- update GLPlugin[SNMP]
-
-2.2 - 2015-01-09
-- finish cmc-tc III
-
-2.1.1 - 2015-01-08
-fix cmctciii
-
-2.1.0 - 2015-01-06
-- Plugin nor uses GLPlugin.pm, rewrite CMCTCII
-
-2.0.0.1 - 2013-08-21
-- added bugfixes cmcIII (Thanks Philipp Deneu)
-
-2.0.0.0.0 - 2013
-- add cmc III
-
-1.1.1 - 2010-01-25
-- added more sensor type oids (Thanks Simmerl)
-
-1.1 - 2009-12-15
-- rewrote the plugin so it can be easily enhanced in the future
-- renamed it to check_rittal_health
-
-1.0 - 2008-12-09
-- First public release
-
+* 2015-07-09 3.0
+  use of external GLPlugin is optional
+  output cmc tc III temperature/humidity/voltage perfdata
+  raise snmp buffer for cmc iii
+* 2015-04-23 2.2.1.1
+  update GLPlugin[SNMP]
+* 2015-01-26 2.2.1
+  update GLPlugin[SNMP]
+* 2.2 - 2015-01-09
+  finish cmc-tc III
+* 2.1.1 - 2015-01-08
+  fix cmctciii
+* 2.1.0 - 2015-01-06
+  Plugin nor uses GLPlugin.pm, rewrite CMCTCII
+* 2.0.0.1 - 2013-08-21
+  added bugfixes cmcIII (Thanks Philipp Deneu)
+* 2.0.0.0.0 - 2013
+  add cmc III
+* 2010-01-25 1.1.1
+  added more sensor type oids (Thanks Simmerl)
+* 2009-12-15 1.1
+  rewrote the plugin so it can be easily enhanced in the future
+  renamed it to check_rittal_health
+* 2008-12-09 1.0
+  First public release

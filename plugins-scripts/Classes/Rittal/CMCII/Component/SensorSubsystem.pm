@@ -1,6 +1,6 @@
 package Classes::Rittal::CMCII::Component::SensorSubsystem;
 use strict;
-our @ISA = qw(GLPlugin::SNMP::Item);
+our @ISA = qw(Monitoring::GLPlugin::SNMP::Item);
 
 sub init {
   my $self = shift;
@@ -23,7 +23,7 @@ sub check {
 
 package Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor;
 use strict;
-our @ISA = qw(GLPlugin::SNMP::TableItem);
+our @ISA = qw(Monitoring::GLPlugin::SNMP::TableItem);
 
 sub finish {
   my $self = shift;
