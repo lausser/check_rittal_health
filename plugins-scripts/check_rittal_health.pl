@@ -1,12 +1,11 @@
 #! /usr/bin/perl
 
 use strict;
-use File::Basename;
 
 eval {
   if ( ! grep /AUTOLOAD/, keys %Monitoring::GLPlugin::) {
-    require "Monitoring::GLPlugin";
-    require "Monitoring::GLPlugin::SNMP";
+    require Monitoring::GLPlugin;
+    require Monitoring::GLPlugin::SNMP;
   }
 };
 if ($@) {
@@ -25,14 +24,6 @@ my $plugin = Classes::Device->new(
     blurb => 'This plugin checks various parameters of rittal cmc ',
     url => 'http://labs.consol.de/nagios/check_rittal_health',
     timeout => 60,
-    plugin => basename($0),
-);
-
-$plugin->add_mode(
-    internal => 'device::uptime',
-    spec => 'uptime',
-    alias => undef,
-    help => 'Check the uptime of the device',
 );
 $plugin->add_mode(
     internal => 'device::sensors::health',
@@ -58,6 +49,7 @@ $plugin->add_mode(
     alias => undef,
     help => 'Show the devices of the cmc ii and update the name cache',
 );
+$plugin->add_snmp_modes();
 $plugin->add_snmp_args();
 $plugin->add_default_args();
 $plugin->mod_arg("name",

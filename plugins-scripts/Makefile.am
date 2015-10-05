@@ -1,4 +1,17 @@
-## Process this file with automake to produce Makefile.in
+libexec_SCRIPTS=check_rittal_health
+GL_MODULES=\
+  ../lib/Monitoring/GLPlugin.pm \
+  ../lib/Monitoring/GLPlugin/SNMP.pm
+EXTRA_MODULES=\
+  Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
+  Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
+  Classes/Rittal/CMCII.pm \
+  Classes/Rittal/CMCIII/Component/DeviceSubsystem.pm \
+  Classes/Rittal/CMCIII/Component/MessageSubsystem.pm \
+  Classes/Rittal/CMCIII.pm \
+  Classes/Rittal.pm \
+  Classes/MibsAndOids.pm \
+  Classes/Device.pm
 
 SED=/bin/sed
 GREP=/bin/grep
@@ -14,23 +27,7 @@ SUFFIXES = .pl .pm .sh
 
 VPATH=$(top_srcdir) $(top_srcdir)/plugins-scripts $(top_srcdir)/plugins-scripts/t
 
-GL_MODULES=\
-  ../lib/Monitoring/GLPlugin.pm \
-  ../lib/Monitoring/GLPlugin/SNMP.pm \
-  ../lib/Monitoring/GLPlugin/UPNP.pm
-
-libexec_SCRIPTS=check_rittal_health
-EXTRA_MODULES=\
-  Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
-  Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
-  Classes/Rittal/CMCII.pm \
-  Classes/Rittal/CMCIII/Component/DeviceSubsystem.pm \
-  Classes/Rittal/CMCIII/Component/MessageSubsystem.pm \
-  Classes/Rittal/CMCIII.pm \
-  Classes/Rittal.pm \
-  Classes/MibsAndOids.pm \
-  Classes/Device.pm
-EXTRA_DIST=check_rittal_health.pl $(EXTRA_MODULES) $(GL_MODULES)
+EXTRA_DIST=$(libexec_SCRIPTS).pl $(EXTRA_MODULES) $(GL_MODULES)
 
 CLEANFILES=$(libexec_SCRIPTS)
 
