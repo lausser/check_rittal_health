@@ -1,7 +1,20 @@
 libexec_SCRIPTS=check_rittal_health
 GL_MODULES=\
+  ../lib/Monitoring/GLPlugin/Commandline/Getopt.pm \
+  ../lib/Monitoring/GLPlugin/Commandline.pm \
   ../lib/Monitoring/GLPlugin.pm \
-  ../lib/Monitoring/GLPlugin/SNMP.pm
+  ../lib/Monitoring/GLPlugin/Item.pm \
+  ../lib/Monitoring/GLPlugin/TableItem.pm \
+  ../lib/Monitoring/GLPlugin/SNMP.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MGSNMPUPSMIB.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MIB2MIB.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIMIB.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIPRODUCTSMIB.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCTCMIB.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/CSF.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/Item.pm \
+  ../lib/Monitoring/GLPlugin/SNMP/TableItem.pm
 EXTRA_MODULES=\
   Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
   Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
@@ -10,7 +23,6 @@ EXTRA_MODULES=\
   Classes/Rittal/CMCIII/Component/MessageSubsystem.pm \
   Classes/Rittal/CMCIII.pm \
   Classes/Rittal.pm \
-  Classes/MibsAndOids.pm \
   Classes/Device.pm
 
 SED=/bin/sed
