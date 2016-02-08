@@ -156,6 +156,7 @@ use strict;
 
 sub finish {
   my $self = shift;
+  $self->{DescName} ||= $self->{cmcIIIVarGroupName}; # undef ist mir schon untergekommen
   $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{DescName};
   $self->{name} =~ s/\s/_/g;
   foreach (qw(cmcIIIVarUnit)) {
