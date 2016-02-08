@@ -1,20 +1,20 @@
 libexec_SCRIPTS=check_rittal_health
 GL_MODULES=\
-  ../lib/Monitoring/GLPlugin/Commandline/Getopt.pm \
-  ../lib/Monitoring/GLPlugin/Commandline.pm \
-  ../lib/Monitoring/GLPlugin.pm \
-  ../lib/Monitoring/GLPlugin/Item.pm \
-  ../lib/Monitoring/GLPlugin/TableItem.pm \
-  ../lib/Monitoring/GLPlugin/SNMP.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MGSNMPUPSMIB.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MIB2MIB.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIMIB.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIPRODUCTSMIB.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCTCMIB.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/CSF.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/Item.pm \
-  ../lib/Monitoring/GLPlugin/SNMP/TableItem.pm
+  ../GLPlugin/lib/Monitoring/GLPlugin/Commandline/Getopt.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/Commandline.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/Item.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/TableItem.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/CSF.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/Item.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/TableItem.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MGSNMPUPSMIB.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MIB2MIB.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIMIB.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIPRODUCTSMIB.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCTCMIB.pm
 EXTRA_MODULES=\
   Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
   Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
@@ -58,7 +58,6 @@ AM_INSTALL_PROGRAM_FLAGS=@INSTALL_OPTS@
 	chmod +x $@
 
 $(libexec_SCRIPTS) : $(EXTRA_DIST)
-	if [ -f ../../GLPlugin/lib/Monitoring/GLPlugin.pm ]; then cp -r ../../GLPlugin/lib ..; fi
 	$(ECHO) "#! #PERL# -w" | $(AWK) -f ./subst > $@
 	$(ECHO) "# nagios: -epn" >> $@
 	$(ECHO) >> $@
