@@ -1,5 +1,5 @@
 package Classes::Rittal::CMCIII;
-our @ISA = qw(Monitoring::GLPlugin::SNMP::Item);
+our @ISA = qw(Classes::Rittal);
 use strict;
 
 
