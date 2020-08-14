@@ -25,16 +25,19 @@ sub check {
     }
     $self->add_ok("have fun");
   } elsif ($self->mode =~ /device::(units|sensors)/) {
-    my $info = sprintf 'message status is %s',
-        $self->{cmcIIIOverallMsgStatus};
-    $self->add_info($info);
-    if ($self->{cmcIIIOverallMsgStatus} ne 'ok') {
-      $self->add_critical();
-    } else {
-      #$self->add_ok();
+    if (! $self->opts->name) {
+      my $info = sprintf 'message status is %s', $self->{cmcIIIOverallMsgStatus};
+      $self->add_info($info);
+      if ($self->{cmcIIIOverallMsgStatus} ne 'ok') {
+        $self->add_critical();
+      } else {
+        $self->add_ok();
+      }
     }
     foreach (@{$self->{messages}}) {
-      $_->check();
+      if ($self->filter_name($_->{cmcIIIDevIndex})) {
+        $_->check();
+      }
     }
     #delete $self->{variables};
   } else {
