@@ -52,18 +52,25 @@ sub check {
     }
     $self->add_ok("have fun");
   } elsif ($self->mode =~ /device::(units|sensors)/) {
-    my $info = sprintf 'cmc-tc has %d devices connected, device status is %s',
-        $self->{cmcIIINumberOfDevs}, $self->{cmcIIIOverallDevStatus};
-    $self->add_info($info);
-    if ($self->{cmcIIIOverallDevStatus} ne 'ok') {
-      $self->add_critical(sprintf 'overall device status is %s',
-          $self->{cmcIIIOverallDevStatus});
-    } else {
-      $self->add_ok();
+    $self->add_info(sprintf 'cmc-tc has %d devices connected', $self->{cmcIIINumberOfDevs});
+    $self->add_ok();
+
+    if (! $self->opts->name) {
+      $self->add_info(sprintf 'overall status is %s', $self->{cmcIIIOverallDevStatus});
+      if ($self->{cmcIIIOverallDevStatus} ne 'ok') {
+        $self->add_critical(sprintf 'overall device status is %s',
+            $self->{cmcIIIOverallDevStatus});
+      } else {
+        $self->add_ok();
+      }
     }
+
     foreach (@{$self->{devices}}) {
-      $_->check();
+      if ($self->filter_name($_->{cmcIIIDevIndex})) {
+        $_->check();
+      }
     }
+
     delete $self->{variables};
   } else {
     $self->no_such_mode();
@@ -83,8 +90,10 @@ sub finish {
 
 sub check {
   my $self = shift;
-  $self->add_info(sprintf 'device %d (%s) has status %s',
-      $self->{cmcIIIDevIndex}, $self->{cmcIIIDevName},
+  $self->add_info(sprintf 'device %d %s (%s) has status %s',
+      $self->{cmcIIIDevIndex},
+      $self->{cmcIIIDevAlias},
+      $self->{cmcIIIDevName},
       $self->{cmcIIIDevStatus});
   if ($self->{cmcIIIDevStatus} ne 'ok') {
     if ($self->{cmcIIIDevStatusText}) {
@@ -92,6 +101,8 @@ sub check {
     } else {
       $self->add_critical();
     }
+  } else {
+    $self->add_ok();
   }
   foreach (@{$self->{variables}}) {
     $_->check();
