@@ -15,7 +15,9 @@ GL_MODULES=\
   ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/MIB2MIB.pm \
   ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIMIB.pm \
   ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCIIIPRODUCTSMIB.pm \
-  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCTCMIB.pm
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/RITTALCMCTCMIB.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/KELVINPCOWEBLCPDXMIB.pm \
+  ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/CARELUG40CDZMIB.pm
 EXTRA_MODULES=\
   Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
   Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
@@ -24,6 +26,9 @@ EXTRA_MODULES=\
   Classes/Rittal/CMCIII/Component/MessageSubsystem.pm \
   Classes/Rittal/CMCIII.pm \
   Classes/Rittal.pm \
+  Classes/Carel/pCOWeb/Component/SensorSubsystem.pm \
+  Classes/Carel/pCOWeb.pm \
+  Classes/Carel.pm \
   Classes/Device.pm
 
 SED=/bin/sed

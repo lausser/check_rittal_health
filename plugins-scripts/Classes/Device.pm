@@ -20,6 +20,9 @@ sub classify {
       } elsif ($self->{productname} =~ /Rittal/i) {
         bless $self, 'Classes::Rittal';
         $self->debug('using Classes::Rittal');
+      } elsif ($self->implements_mib("CAREL-UG40CDZ-MIB")) {
+        bless $self, 'Classes::Carel';
+        $self->debug('using Classes::Carel');
       } else {
         if (my $class = $self->discover_suitable_class()) {
           bless $self, $class;
