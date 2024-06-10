@@ -1,3 +1,7 @@
+* 2024-06-10 4.0
+  restructure for epn
+  show leakage as perfdata
+  fix a lot of undef-errors in Rittal CMC III (multitemperature devices)
 * 2022-07-29 3.2
   add CAREL-UG40CDZ-MIB
 * 2017-03-20 3.1.1

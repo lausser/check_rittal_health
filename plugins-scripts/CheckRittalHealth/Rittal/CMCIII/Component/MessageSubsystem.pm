@@ -1,4 +1,4 @@
-package Classes::Rittal::CMCIII::Component::MessageSubsystem;
+package CheckRittalHealth::Rittal::CMCIII::Component::MessageSubsystem;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::Item);
 use strict;
 
@@ -7,7 +7,7 @@ sub init {
   $self->get_snmp_objects('RITTAL-CMC-III-MIB',
       qw(cmcIIIOverallMsgStatus cmcIIINumberOfMsgs));
   $self->get_snmp_tables('RITTAL-CMC-III-MIB', [
-      ['messages', 'cmcIIIMsgTable', 'Classes::Rittal::CMCIII::Component::MessageSubsystem::Message'],
+      ['messages', 'cmcIIIMsgTable', 'CheckRittalHealth::Rittal::CMCIII::Component::MessageSubsystem::Message'],
   ]);
 }
 
@@ -43,7 +43,7 @@ sub check {
 }
 
 
-package Classes::Rittal::CMCIII::Component::MessageSubsystem::Message;
+package CheckRittalHealth::Rittal::CMCIII::Component::MessageSubsystem::Message;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::TableItem);
 use strict;
 

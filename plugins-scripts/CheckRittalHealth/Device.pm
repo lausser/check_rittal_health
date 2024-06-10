@@ -1,4 +1,4 @@
-package Classes::Device;
+package CheckRittalHealth::Device;
 our @ISA = qw(Monitoring::GLPlugin::SNMP);
 use strict;
 
@@ -18,18 +18,18 @@ sub classify {
       if ($self->opts->mode =~ /^my-/) {
         $self->load_my_extension();
       } elsif ($self->{productname} =~ /Rittal/i) {
-        bless $self, 'Classes::Rittal';
-        $self->debug('using Classes::Rittal');
+        bless $self, 'CheckRittalHealth::Rittal';
+        $self->debug('using CheckRittalHealth::Rittal');
       } elsif ($self->implements_mib("CAREL-UG40CDZ-MIB")) {
-        bless $self, 'Classes::Carel';
-        $self->debug('using Classes::Carel');
+        bless $self, 'CheckRittalHealth::Carel';
+        $self->debug('using CheckRittalHealth::Carel');
       } else {
         if (my $class = $self->discover_suitable_class()) {
           bless $self, $class;
           $self->debug('using '.$class);
         } else {
-          bless $self, 'Classes::Generic';
-          $self->debug('using Classes::Generic');
+          bless $self, 'CheckRittalHealth::Generic';
+          $self->debug('using CheckRittalHealth::Generic');
         }
       }
     }
@@ -38,8 +38,8 @@ sub classify {
 }
 
 
-package Classes::Generic;
-our @ISA = qw(Classes::Device);
+package CheckRittalHealth::Generic;
+our @ISA = qw(CheckRittalHealth::Device);
 use strict;
 
 sub init {

@@ -19,17 +19,17 @@ GL_MODULES=\
   ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/KELVINPCOWEBLCPDXMIB.pm \
   ../GLPlugin/lib/Monitoring/GLPlugin/SNMP/MibsAndOids/CARELUG40CDZMIB.pm
 EXTRA_MODULES=\
-  Classes/Rittal/CMCII/Component/SensorSubsystem.pm \
-  Classes/Rittal/CMCII/Component/UnitSubsystem.pm \
-  Classes/Rittal/CMCII.pm \
-  Classes/Rittal/CMCIII/Component/DeviceSubsystem.pm \
-  Classes/Rittal/CMCIII/Component/MessageSubsystem.pm \
-  Classes/Rittal/CMCIII.pm \
-  Classes/Rittal.pm \
-  Classes/Carel/pCOWeb/Component/SensorSubsystem.pm \
-  Classes/Carel/pCOWeb.pm \
-  Classes/Carel.pm \
-  Classes/Device.pm
+  CheckRittalHealth/Rittal/CMCII/Component/SensorSubsystem.pm \
+  CheckRittalHealth/Rittal/CMCII/Component/UnitSubsystem.pm \
+  CheckRittalHealth/Rittal/CMCII.pm \
+  CheckRittalHealth/Rittal/CMCIII/Component/DeviceSubsystem.pm \
+  CheckRittalHealth/Rittal/CMCIII/Component/MessageSubsystem.pm \
+  CheckRittalHealth/Rittal/CMCIII.pm \
+  CheckRittalHealth/Rittal.pm \
+  CheckRittalHealth/Carel/pCOWeb/Component/SensorSubsystem.pm \
+  CheckRittalHealth/Carel/pCOWeb.pm \
+  CheckRittalHealth/Carel.pm \
+  CheckRittalHealth/Device.pm
 
 SED=/bin/sed
 GREP=/bin/grep

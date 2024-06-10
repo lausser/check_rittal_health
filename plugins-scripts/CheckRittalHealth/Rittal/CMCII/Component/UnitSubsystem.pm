@@ -1,4 +1,4 @@
-package Classes::Rittal::CMCII::Component::UnitSubsystem;
+package CheckRittalHealth::Rittal::CMCII::Component::UnitSubsystem;
 use strict;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::Item);
 
@@ -7,7 +7,7 @@ sub init {
   $self->{units} = [];
   foreach (1..4) {
     next if $self->opts->name && $self->opts->name ne $_;
-    my $unit = Classes::Rittal::CMCII::Component::UnitSubsystem::Unit->new(unit => $_);
+    my $unit = CheckRittalHealth::Rittal::CMCII::Component::UnitSubsystem::Unit->new(unit => $_);
     push(@{$self->{units}}, $unit) if $unit->{cmcTcUnitStatus} ne "notAvail";
   }
 }
@@ -39,7 +39,7 @@ sub check {
   }
 }
 
-package Classes::Rittal::CMCII::Component::UnitSubsystem::Unit;
+package CheckRittalHealth::Rittal::CMCII::Component::UnitSubsystem::Unit;
 use strict;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::Item);
 
@@ -61,7 +61,7 @@ sub init {
       $self->{unit}, $self->{'cmcTcUnitStatus'});
   if ($self->{'cmcTcUnitStatus'} ne "notAvail") {
     $self->get_snmp_tables('RITTAL-CMC-TC-MIB', [
-        ['sensors', 'cmcTcUnit'.$self->{unit}.'SensorTable', 'Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor', sub { my $o = shift; ($o->{unitSensorStatus} ne "notAvail") && (! $self->opts->name2 || ($self->opts->name2 && $self->opts->name2 eq $o->{unitSensorIndex})) }],
+        ['sensors', 'cmcTcUnit'.$self->{unit}.'SensorTable', 'CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem::Sensor', sub { my $o = shift; ($o->{unitSensorStatus} ne "notAvail") && (! $self->opts->name2 || ($self->opts->name2 && $self->opts->name2 eq $o->{unitSensorIndex})) }],
     ]);
   }
 }

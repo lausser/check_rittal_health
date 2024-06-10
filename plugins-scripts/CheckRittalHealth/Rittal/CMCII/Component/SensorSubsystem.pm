@@ -1,11 +1,11 @@
-package Classes::Rittal::CMCII::Component::SensorSubsystem;
+package CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem;
 use strict;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::Item);
 
 sub init {
   my $self = shift;
   $self->get_snmp_table_objects('RITTAL-CMC-TC-MIB', [
-      ['sensors', 'SensorTable', 'Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor', sub { my $o = shift; $o->{unitSensorStatus} ne "notAvail" }],
+      ['sensors', 'SensorTable', 'CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem::Sensor', sub { my $o = shift; $o->{unitSensorStatus} ne "notAvail" }],
   ]);
 }
 
@@ -21,7 +21,7 @@ sub check {
 }
 
 
-package Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor;
+package CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem::Sensor;
 use strict;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::TableItem);
 
@@ -37,7 +37,7 @@ sub finish {
   }
   my @perftypes = qw(airFlow temperature humidity voltage rpm\d+LCP airTemp\d+LCP temp\d+LCP waterInTemp waterOutTemp waterFlow fanSpeed contrTemp2 frequencyPSM voltagePSM voltStatusPSM amperePSM kWPSM kWhPSM kWhTempPSM temperatureWL temperature1WL humidityWL);
   if (grep { $self->{unitSensorType} =~ /^$_$/ } @perftypes) {
-    bless $self, "Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor::Perf";
+    bless $self, "CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem::Sensor::Perf";
   }
 }
 
@@ -52,9 +52,9 @@ sub check {
   }
 }
 
-package Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor::Perf;
+package CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem::Sensor::Perf;
 use strict;
-our @ISA = qw(Classes::Rittal::CMCII::Component::SensorSubsystem::Sensor);
+our @ISA = qw(CheckRittalHealth::Rittal::CMCII::Component::SensorSubsystem::Sensor);
 
 sub check {
   my $self = shift;

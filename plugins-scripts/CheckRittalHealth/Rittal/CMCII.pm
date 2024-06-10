@@ -1,6 +1,6 @@
-package Classes::Rittal::CMCII;
+package CheckRittalHealth::Rittal::CMCII;
 use strict;
-our @ISA = qw(Classes::Rittal);
+our @ISA = qw(CheckRittalHealth::Rittal);
 
 
 sub init {
@@ -14,7 +14,7 @@ sub init {
     if ($self->{cmcTcMibCondition} ne "ok") {
       $self->add_warning(sprintf "mib condition is %s fault", $self->{cmcTcMibCondition});
     }
-    $self->analyze_and_check_unit_subsystem('Classes::Rittal::CMCII::Component::UnitSubsystem');
+    $self->analyze_and_check_unit_subsystem('CheckRittalHealth::Rittal::CMCII::Component::UnitSubsystem');
   } else {
     $self->no_such_mode();
   }
