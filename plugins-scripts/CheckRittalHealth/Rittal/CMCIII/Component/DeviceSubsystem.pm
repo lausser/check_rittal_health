@@ -331,7 +331,7 @@ sub check {
   # sich cool vor. Wie mich das ankotzt :-(((
   $self->add_perfdata(label => $self->{name},
       value => $self->{Status} eq "OK" ? 0 : 1,
-  );
+  ) if $self->{Status} ne "n.a.";
 }
 
 

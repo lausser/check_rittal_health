@@ -1,3 +1,5 @@
+* 2024-10-09 4.0.0.1
+  no perfdata for n/a leakage sensors
 * 2024-06-10 4.0
   restructure for epn
   show leakage as perfdata
