@@ -106,7 +106,7 @@ sub group_variables {
   my $perf_variables = {};
   my $group_names = {};
   foreach (@{$self->{variables}}) {
-    if ($_->{cmcIIIVarName} =~ /^([\w\.]*(Temperature|Supply|Humidity))\.(.*)/) {
+    if ($_->{cmcIIIVarName} =~ /^([\w\.]*(Temperature|Supply|Humidity|Access))\.(.*)/) {
       # Air.Temperature.DescName
       # Air.Temperature.In-Mid
       # Air.Temperature.Out-Mid
@@ -122,6 +122,12 @@ sub group_variables {
       # ...
       my $var_item = $1;
       my $var_var = $3;
+      # Hier koentte es zuu Ueberlappungen bzw. Ueberschreiben kommen,
+      # da es etliche Temperature.DescName, Temperature.DescName,...
+      # und besonders Access.DescName, Access.DescName, Access.DescName,...
+      # gibt. Allerdings scheinen die innerhalb eines Devices jeweils nur
+      # einmal vorzukommen. (Ansonsten muesste man $var_item.$**indices
+      # als key nehmen.
       $perf_variables->{$var_item} = {} if ! exists $perf_variables->{$var_item};
       $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueStr};
       if ($var_var eq "Status" and exists $perf_variables->{$var_item} and exists $perf_variables->{$var_item}->{DescName} and  $perf_variables->{$var_item}->{DescName} =~ /Temperatures/) {
@@ -199,7 +205,6 @@ sub group_variables {
     push(@{$self->{perf_variables}}, 
         CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup->new(%{$perf_variables->{$_}}));
   }
-  #@{$self->{variables}} = grep { ! exists $group_names->{$_->{cmcIIIVarName}} } @{$self->{variables}};
 }
 
 
@@ -274,7 +279,10 @@ sub finish {
     bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::SupplyGroup';
   } elsif ($self->{cmcIIIVarGroupName} =~ /Leakage/) {
     bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::LeakageGroup';
-  }
+  } elsif ($self->{cmcIIIVarGroupName} =~ /Access/) {
+    bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::AccessGroup';
+  } else {
+}
 }
 
 sub check {
@@ -334,4 +342,19 @@ sub check {
   ) if $self->{Status} ne "n.a.";
 }
 
+package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::AccessGroup;
+our @ISA = qw(CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup);
+use strict;
 
+sub check {
+  my $self = shift;
+  $self->add_info(sprintf '%s has status %s',
+      $self->{name}, $self->{Status}
+  );
+  if ($self->{Status} eq "Open") {
+    $self->add_critical_mitigation();
+  }
+  $self->add_perfdata(label => $self->{name},
+      value => $self->{Status} eq "Open" ? 1 : 0,
+  );
+}
