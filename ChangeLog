@@ -1,3 +1,5 @@
+* 2025-01-08 4.1.1
+  add checks for power and fuse (also perfdata) of cmc III
 * 2024-10-09 4.1
   check status of access variables (not only messages) for open doors, add perfdata
 * 2024-10-09 4.0.0.1

@@ -106,7 +106,11 @@ sub group_variables {
   my $perf_variables = {};
   my $group_names = {};
   foreach (@{$self->{variables}}) {
-    if ($_->{cmcIIIVarName} =~ /^([\w\.]*(Temperature|Supply|Humidity|Access))\.(.*)/) {
+    $_->{cmcIIIVarName} =~ /^(.*)\.(.*?)$/;
+    my $var_item = $1;
+    my $var_var = $2;
+printf "XY-> %s // %s\n", $var_item, $var_var;
+    if ($_->{cmcIIIVarName} =~ /^([\w\.]*(Current Speed\.Fan\d+|Power\.Active|Temperature|Supply|Humidity|Access|))\.(.*)/) {
       # Air.Temperature.DescName
       # Air.Temperature.In-Mid
       # Air.Temperature.Out-Mid
@@ -120,9 +124,17 @@ sub group_variables {
       # Temperature.Value
       # Temperature.Status
       # ...
+      # Coolant.Temperature.Supply.DescName
+      # Coolant.Temperature.Supply.Value
+      # Coolant.Temperature.Supply.Status
+      # ...
+      # Coolant.Temperature.Return.DescName
+      # Coolant.Temperature.Return.Value
+      # Coolant.Temperature.Return.Status
+      # ...
       my $var_item = $1;
       my $var_var = $3;
-      # Hier koentte es zuu Ueberlappungen bzw. Ueberschreiben kommen,
+      # Hier koennte es zu Ueberlappungen bzw. Ueberschreiben kommen,
       # da es etliche Temperature.DescName, Temperature.DescName,...
       # und besonders Access.DescName, Access.DescName, Access.DescName,...
       # gibt. Allerdings scheinen die innerhalb eines Devices jeweils nur
@@ -134,7 +146,7 @@ sub group_variables {
         # z.b. Air-Temperatures. So ein Dings hat keine Variable *.Value
         # wie es sie bei "normalen" XY*Temperature.Value gibt.
         # Denn Air-Temperatures hat haufenweise Oben/unten/linkshinten-Werte
-        # die allesamt eine eigene Tempratur angeben.
+        # die allesamt eine eigene Temperatur angeben.
         # Hier ist daher .Status verantwortlich, den perfvariablen die
         # die cmcIII-Zuordnung zu verpassen. Ob wie hier in einer Status-Var
         # sind, deren Schwester-Var Air.Temperature.DescName einen ValueStr
@@ -182,12 +194,15 @@ sub group_variables {
         $perf_variables->{$var_item}->{cmcIIIVarUnit} = $_->{cmcIIIVarUnit};
         $group_names->{$_->{cmcIIIVarName}} = 1;
       }
-    } elsif ($_->{cmcIIIVarName} =~ /^([\w\.]*(Leakage))\.(.*)/ or
-        $_->{cmcIIIVarName} =~ /^([\w\.]*(Temperature|Supply|Humidity))\.(.*)/) {
+    } elsif ($_->{cmcIIIVarName} =~ /^([\w\.]*(Leakage Sensor))\.(.*)/ or
+        $_->{cmcIIIVarName} =~ /^([\w\.]*(Leakage))\.(.*)/ or
+        $_->{cmcIIIVarName} =~ /^([\w\.]*(Temperature|Supply|Humidity))\.(.*)/ or
+        $_->{cmcIIIVarName} =~ /^([\w\.\s]*(Fuses\.Fuse\s+\d+))\.(.*)/) {
       # there is no variable cmcIIIVarName: Leakage.Value
       # we need to work with cmcIIIVarName: Leakage.Status
       # which has cmcIIIVarType: status, cmcIIIVarValueStr: OK and
       # cmcIIIVarValueInt: 4, whatever this value means. 
+      # 8.1.25: and there canalso be cmcIIIVarValueStr: Leakage Sensor
       my $var_item = $1;
       my $var_var = $3;
       if ($var_var eq "Status") {
@@ -198,6 +213,8 @@ sub group_variables {
         $perf_variables->{$var_item}->{cmcIIIVarDeviceIndex} = $_->{cmcIIIVarDeviceIndex};
         $perf_variables->{$var_item}->{cmcIIIVarUnit} = $_->{cmcIIIVarUnit};
         $group_names->{$_->{cmcIIIVarName}} = 1;
+      } elsif ($var_var eq "DescName") {
+        $perf_variables->{$var_item}->{ShortDescName} = $_->{cmcIIIVarValueStr};
       }
     }
   }
@@ -257,8 +274,16 @@ sub finish {
 #}, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup' );
 #
 #
-  $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{DescName};
-  $self->{name} =~ s/\s/_/g;
+if (! $self->{DescName}) {
+ printf "%s\n", Data::Dumper::Dumper($self);
+}
+  if ($self->{ShortDescName}) {
+    $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{ShortDescName};
+    $self->{name} =~ s/\s/_/g;
+  } else {
+    $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{DescName};
+    $self->{name} =~ s/\s/_/g;
+  }
   foreach (qw(cmcIIIVarUnit)) {
     if (defined $self->{$_}) {
       $self->{$_} =~ s/[^%\w]//g;
@@ -281,20 +306,41 @@ sub finish {
     bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::LeakageGroup';
   } elsif ($self->{cmcIIIVarGroupName} =~ /Access/) {
     bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::AccessGroup';
+  } elsif ($self->{cmcIIIVarGroupName} =~ /Total\.Power\.Active/) {
+    bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::PowerGroup';
+  } elsif ($self->{cmcIIIVarGroupName} =~ /Fuse/) {
+    bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::FuseGroup';
+  } elsif ($self->{cmcIIIVarGroupName} =~ /Fans.*Speed/) {
+    bless $self, 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::FanGroup';
   } else {
 }
 }
 
 sub check {
   my $self = shift;
-  $self->set_thresholds(metric => $self->{name},
-      warning => $self->{SetPtLowWarning}.":".$self->{SetPtHighWarning},
-      critical => $self->{SetPtLowAlarm}.":".$self->{SetPtHighAlarm});
+  $self->add_info(sprintf '%s has status %s',
+      $self->{name}, $self->{Status}
+  );
+  if ($self->{Status} ne "OK" and $self->{Status} ne "n.a.") {
+    $self->add_critical();
+  }
+  if ($self->{SetPtLowWarning} || $self->{SetPtHighWarning} ||
+      $self->{SetPtLowAlarm} || $self->{SetPtHighAlarm}) {
+    # die setzen wir nur, wenn's danach aussieht, als haette einer was
+    # eingetragen. 'dev_2_Power_Active'=63;0:0;0:0;; sieht bloed aus.
+    $self->set_thresholds(metric => $self->{name},
+        warning => $self->{SetPtLowWarning}.":".$self->{SetPtHighWarning},
+        critical => $self->{SetPtLowAlarm}.":".$self->{SetPtHighAlarm});
+  }
   $self->add_perfdata(label => $self->{name},
       uom => $self->{cmcIIIVarUnit} eq "%" ? 
           $self->{cmcIIIVarUnit} : undef,
       value => $self->{Value});
 }
+
+package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::FanGroup;
+our @ISA = qw(CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup);
+use strict;
 
 package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::TemperatureGroup;
 our @ISA = qw(CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup);
@@ -341,6 +387,29 @@ sub check {
       value => $self->{Status} eq "OK" ? 0 : 1,
   ) if $self->{Status} ne "n.a.";
 }
+
+package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::FuseGroup;
+our @ISA = qw(CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup);
+use strict;
+
+sub check {
+  my $self = shift;
+  $self->add_info(sprintf '%s has status %s',
+      $self->{name}, $self->{Status}
+  );
+  if ($self->{Status} ne "OK" and $self->{Status} ne "n.a.") {
+    $self->add_critical();
+  }
+  # Siehe Lecksensoren. Muss unbedingt ins Grafana, unbedingt!
+  $self->add_perfdata(label => $self->{name},
+      value => $self->{Status} eq "OK" ? 0 : 1,
+  ) if $self->{Status} ne "n.a.";
+}
+
+package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::PowerGroup;
+our @ISA = qw(CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup);
+use strict;
+
 
 package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::AccessGroup;
 our @ISA = qw(CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup);
