@@ -103,79 +103,40 @@ sub check {
 
 sub group_variables {
   my $self = shift;
+  my $all_variables = {};
   my $perf_variables = {};
   my $group_names = {};
+  my $has_value = {};
+  my $has_status = {};
+  foreach my $var (@{$self->{variables}}) {
+    $all_variables->{$var} = 1; # make an inventory
+    if ($var->{cmcIIIVarName} =~ /(.*)\.Value$/) {
+      my $prefix = $1;
+      $has_value->{$prefix} = $var->{cmcIIIVarValueStr};
+    }
+  }
+  foreach my $var (@{$self->{variables}}) {
+    if ($var->{cmcIIIVarName} =~ /(.*)\.Status$/) {
+      my $prefix = $1;
+      $has_status->{$prefix} = $var->{cmcIIIVarValueStr};
+    }
+  }
   foreach (@{$self->{variables}}) {
     $_->{cmcIIIVarName} =~ /^(.*)\.(.*?)$/;
     my $var_item = $1;
     my $var_var = $2;
-printf "XY-> %s // %s\n", $var_item, $var_var;
-    if ($_->{cmcIIIVarName} =~ /^([\w\.]*(Current Speed\.Fan\d+|Power\.Active|Temperature|Supply|Humidity|Access|))\.(.*)/) {
-      # Air.Temperature.DescName
-      # Air.Temperature.In-Mid
-      # Air.Temperature.Out-Mid
-      # Air.Temperature.Status
-      # ...
-      # System.Temperature.DescName
-      # System.Temperature.Value
-      # System.Temperature.Status
-      # ...
-      # Temperature.DescName
-      # Temperature.Value
-      # Temperature.Status
-      # ...
-      # Coolant.Temperature.Supply.DescName
-      # Coolant.Temperature.Supply.Value
-      # Coolant.Temperature.Supply.Status
-      # ...
-      # Coolant.Temperature.Return.DescName
-      # Coolant.Temperature.Return.Value
-      # Coolant.Temperature.Return.Status
-      # ...
-      my $var_item = $1;
-      my $var_var = $3;
-      # Hier koennte es zu Ueberlappungen bzw. Ueberschreiben kommen,
-      # da es etliche Temperature.DescName, Temperature.DescName,...
-      # und besonders Access.DescName, Access.DescName, Access.DescName,...
-      # gibt. Allerdings scheinen die innerhalb eines Devices jeweils nur
-      # einmal vorzukommen. (Ansonsten muesste man $var_item.$**indices
-      # als key nehmen.
-      $perf_variables->{$var_item} = {} if ! exists $perf_variables->{$var_item};
-      $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueStr};
-      if ($var_var eq "Status" and exists $perf_variables->{$var_item} and exists $perf_variables->{$var_item}->{DescName} and  $perf_variables->{$var_item}->{DescName} =~ /Temperatures/) {
-        # z.b. Air-Temperatures. So ein Dings hat keine Variable *.Value
-        # wie es sie bei "normalen" XY*Temperature.Value gibt.
-        # Denn Air-Temperatures hat haufenweise Oben/unten/linkshinten-Werte
-        # die allesamt eine eigene Temperatur angeben.
-        # Hier ist daher .Status verantwortlich, den perfvariablen die
-        # die cmcIII-Zuordnung zu verpassen. Ob wie hier in einer Status-Var
-        # sind, deren Schwester-Var Air.Temperature.DescName einen ValueStr
-        # von ...Temperatures (Plural) hatte, entscheidet.
-        $perf_variables->{$var_item}->{cmcIIIVarGroupName} = $var_item;
-        $perf_variables->{$var_item}->{cmcIIIVarDeviceIndex} = $_->{cmcIIIVarDeviceIndex};
-        $perf_variables->{$var_item}->{cmcIIIVarUnit} = $_->{cmcIIIVarUnit};
-        $group_names->{$_->{cmcIIIVarName}} = 1;
-      } elsif ($var_var ne "Value" and index($_->{cmcIIIVarUnit}, "degree") != -1) {
-        # das sind jetzt die "Values" so eines Multi-Temperatur-Dingens
-        # Im Gegensatz zu dem naechsten elsif, der einen Satz Variablen
-        # gruppiert, welche nur eine .Value haben
-        if ($_->{cmcIIIVarScale} > 0) {
-          $perf_variables->{$var_item}->{$var_var} =
-              $_->{cmcIIIVarValueInt} * $_->{cmcIIIVarScale};
-        } elsif ($_->{cmcIIIVarScale} < 0) {
-          $perf_variables->{$var_item}->{$var_var} =
-              $_->{cmcIIIVarValueInt} / abs($_->{cmcIIIVarScale});
-        } else {
-          $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueInt};
-        }
-        # later in the check, we need to know which of the attributes of
-        # a VariableGroup is a metric
-        if (! exists $perf_variables->{$var_item}->{perf_vars}) {
-          $perf_variables->{$var_item}->{perf_vars} = [];
-        } else {
-          push(@{$perf_variables->{$var_item}->{perf_vars}}, $var_var);
-        }
-      } elsif ($var_var eq "Value") {
+    # only total power, not power on the single lines
+    next if $var_item !~ /(Total.*\.Power\.Active)|Temperature| Temp|Humidity|Supply|Access|Leakage|(Fuses\.Fuse\s+\d+)|(Speed.*Fan\d+)/;
+    # skip electric supply, we want cooling/air supply only
+    next if $var_item =~ /Supply.*(\d+V|\d+V\d+)$/;
+    # looks like a sollwert
+    # var 2/109 (Config.Fans.Fan1) has status 80 %
+    next if $var_item =~ /Config\.Fan/;
+    $perf_variables->{$var_item} = {} if ! exists $perf_variables->{$var_item};
+    $perf_variables->{$var_item}->{valid} = 0 if ! exists $perf_variables->{$var_item}->{valid};
+    $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueStr};
+    if (exists $has_value->{$var_item}) {
+      if ($var_var eq "Value") {
         # variable is cmcIIIVarName: Temperature.Value
         # cmcIIIVarValueStr is pretty ok, like
         # cmcIIIVarValueStr: 26.80 degree C
@@ -189,41 +150,240 @@ printf "XY-> %s // %s\n", $var_item, $var_var;
         } else {
           $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueInt};
         }
+        if ($var_item =~ /Remote/ and
+            # Das Folgende gilt fuer Fans,Valve uvm. nicht nur Temperaturen
+            exists $has_status->{$var_item} and
+            exists $has_value->{$var_item} and
+            $has_status->{$var_item} eq "Off" and
+            $has_value->{$var_item} =~ /^0/) {
+            # z.b.
+            # var 2/183 (Remote.Temperature.DescName) has status Remote Temperature
+            # var 2/184 (Remote.Temperature.Value) has status 0.00 degree C
+            # var 2/185 (Remote.Temperature.Timeout) has status 0 s
+            # var 2/186 (Remote.Temperature.Mode) has status Off
+            # var 2/187 (Remote.Temperature.Status) has status Off
+            # das Zeug ist wahrsch. nicht mal eingesteckt.
+            next;
+        }
         $perf_variables->{$var_item}->{cmcIIIVarGroupName} = $var_item;
         $perf_variables->{$var_item}->{cmcIIIVarDeviceIndex} = $_->{cmcIIIVarDeviceIndex};
         $perf_variables->{$var_item}->{cmcIIIVarUnit} = $_->{cmcIIIVarUnit};
-        $group_names->{$_->{cmcIIIVarName}} = 1;
+        $perf_variables->{$var_item}->{valid} = 1;
       }
-    } elsif ($_->{cmcIIIVarName} =~ /^([\w\.]*(Leakage Sensor))\.(.*)/ or
-        $_->{cmcIIIVarName} =~ /^([\w\.]*(Leakage))\.(.*)/ or
-        $_->{cmcIIIVarName} =~ /^([\w\.]*(Temperature|Supply|Humidity))\.(.*)/ or
-        $_->{cmcIIIVarName} =~ /^([\w\.\s]*(Fuses\.Fuse\s+\d+))\.(.*)/) {
-      # there is no variable cmcIIIVarName: Leakage.Value
-      # we need to work with cmcIIIVarName: Leakage.Status
-      # which has cmcIIIVarType: status, cmcIIIVarValueStr: OK and
-      # cmcIIIVarValueInt: 4, whatever this value means. 
-      # 8.1.25: and there canalso be cmcIIIVarValueStr: Leakage Sensor
-      my $var_item = $1;
-      my $var_var = $3;
-      if ($var_var eq "Status") {
+    } elsif (exists $has_status->{$var_item}) {
+      if ($var_var eq "Status" and
+          $var_item =~ /Leakage|Fuses\.Fuse\s+\d+/) {
+        # there is no variable cmcIIIVarName: Leakage.Value
+        # we need to work with cmcIIIVarName: Leakage.Status
+        # which has cmcIIIVarType: status, cmcIIIVarValueStr: OK and
+        # cmcIIIVarValueInt: 4, whatever this value means. 
+        # 8.1.25: and there can also be cmcIIIVarValueStr: Leakage Sensor
         $perf_variables->{$var_item} = {} if ! exists $perf_variables->{$var_item};
         $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueStr};
         $perf_variables->{$var_item}->{Value} = $_->{cmcIIIVarValueInt};
         $perf_variables->{$var_item}->{cmcIIIVarGroupName} = $var_item;
         $perf_variables->{$var_item}->{cmcIIIVarDeviceIndex} = $_->{cmcIIIVarDeviceIndex};
         $perf_variables->{$var_item}->{cmcIIIVarUnit} = $_->{cmcIIIVarUnit};
-        $group_names->{$_->{cmcIIIVarName}} = 1;
-      } elsif ($var_var eq "DescName") {
-        $perf_variables->{$var_item}->{ShortDescName} = $_->{cmcIIIVarValueStr};
+        $perf_variables->{$var_item}->{valid} = 1;
+      } elsif ($var_var ne "Value" and index($_->{cmcIIIVarUnit}, "degree") != -1 and $var_item =~ /Temperature/) {
+        # das sind jetzt die "Values" so eines Multi-Temperatur-Dingens
+        # Im Gegensatz zu dem naechsten elsif, der einen Satz Variablen
+        # gruppiert, welche nur eine .Value haben
+        # var 2/6 (Air.Temperature.DescName) has status Air-Temperatures
+        # var 2/7 (Air.Temperature.In-Top) has status 17.3 degree C
+        # var 2/8 (Air.Temperature.In-Mid) has status 18.1 degree C
+        # var 2/9 (Air.Temperature.In-Bot) has status 18.8 degree C
+        # var 2/10 (Air.Temperature.Out-Top) has status 27.0 degree C
+        # var 2/11 (Air.Temperature.Out-Mid) has status 26.4 degree C
+        # var 2/12 (Air.Temperature.Out-Bot) has status 27.9 degree C
+        # var 2/13 (Air.Temperature.Status) has status OK
+        # var 2/14 (Air.Temperature.Category) has status 2
+        # im Gegensatz zu
+        # System.Temperature.DescName
+        # System.Temperature.Value
+        # System.Temperature.Status
+        # ...
+        # Temperature.DescName
+        # Temperature.Value
+        # Temperature.Status
+        # ...
+        # Coolant.Temperature.Supply.DescName
+        # Coolant.Temperature.Supply.Value
+        # Coolant.Temperature.Supply.Status
+        # ...
+        # Coolant.Temperature.Return.DescName
+        # Coolant.Temperature.Return.Value
+        # Coolant.Temperature.Return.Status
+        # ...
+        if ($_->{cmcIIIVarScale} > 0) {
+          $perf_variables->{$var_item}->{$var_var} =
+              $_->{cmcIIIVarValueInt} * $_->{cmcIIIVarScale};
+        } elsif ($_->{cmcIIIVarScale} < 0) {
+          $perf_variables->{$var_item}->{$var_var} =
+              $_->{cmcIIIVarValueInt} / abs($_->{cmcIIIVarScale});
+        } else {
+          $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueInt};
+        }
+        # later in the check, we need to know which of the attributes of
+        # a VariableGroup is a metric
+        if (! exists $perf_variables->{$var_item}->{perf_vars}) {
+          $perf_variables->{$var_item}->{perf_vars} = [$var_var];
+        } else {
+          push(@{$perf_variables->{$var_item}->{perf_vars}}, $var_var);
+        }
+        $perf_variables->{$var_item}->{cmcIIIVarGroupName} = $var_item;
+        $perf_variables->{$var_item}->{cmcIIIVarDeviceIndex} = $_->{cmcIIIVarDeviceIndex};
+        $perf_variables->{$var_item}->{cmcIIIVarUnit} = $_->{cmcIIIVarUnit};
+        $perf_variables->{$var_item}->{valid} = 1;
       }
     }
   }
+  # Duplicates ist eine Struktur mit DescName als Key und einer Liste aus
+  # cmcIIIVarGroupName als Value.
+  # Falls also mehrere gleichlautende DescName vergeben wurden (konkretes
+  # Beispiel: alle Fans.Current Speed.Fan*.Value haben als DescName "Fan")
+  # dann haengt unter dem DescName-Key ein Array mit langen Variablennamen.
+  my $duplicates = {};
   foreach (sort keys %{$perf_variables}) {
+    next if ! $perf_variables->{$_}->{valid};
+    if (exists $duplicates->{$perf_variables->{$_}->{DescName}}) {
+      push(@{$duplicates->{$perf_variables->{$_}->{DescName}}}, $perf_variables->{$_}->{cmcIIIVarGroupName});
+    } else {
+      $duplicates->{$perf_variables->{$_}->{DescName}} = [$perf_variables->{$_}->{cmcIIIVarGroupName}];
+    }
+  }
+  my @to_del = ();
+  foreach my $descname (keys %{$duplicates}) {
+    # 1 Element, nicht doppelt
+    push(@to_del, $descname) if scalar(@{$duplicates->{$descname}}) <= 1;
+  }
+  foreach (@to_del) {
+    delete $duplicates->{$_};
+  }
+  # Jetzt werden aus denausfuehrlichen Variablennamen die gemeinsamen
+  # Bestandteile entfernt.
+  $duplicates = $self->remove_common_words($duplicates);
+  foreach (sort keys %{$perf_variables}) {
+    next if ! $perf_variables->{$_}->{valid};
+    # if all the fans have DescName of "Fan", we need to take the numbered
+    # version from var_item/cmcIIIVarGroupName
+    # var 2/89 (Fans.Current Speed.Fan1.DescName) has status Fan
+    # var 2/90 (Fans.Current Speed.Fan1.Value) has status 10 %
+    # var 2/91 (Fans.Current Speed.Fan1.Status) has status OK
+    # var 2/92 (Fans.Current Speed.Fan1.Category) has status 2
+    # var 2/93 (Fans.Current Speed.Fan2.DescName) has status Fan
+    # var 2/94 (Fans.Current Speed.Fan2.Value) has status 10 %
+    # var 2/95 (Fans.Current Speed.Fan2.Status) has status OK
+    # var 2/96 (Fans.Current Speed.Fan2.Category) has status 2
+    # var 2/97 (Fans.Current Speed.Fan3.DescName) has status Fan
+    # var 2/98 (Fans.Current Speed.Fan3.Value) has status 9 %
+    # var 2/99 (Fans.Current Speed.Fan3.Status) has status OK
+    # var 2/100 (Fans.Current Speed.Fan3.Category) has status 2
+    # var 2/101 (Fans.Current Speed.Fan4.DescName) has status Fan
+    # var 2/102 (Fans.Current Speed.Fan4.Value) has status 0 %
+    # var 2/103 (Fans.Current Speed.Fan4.Status) has status Inactive
+    # var 2/104 (Fans.Current Speed.Fan4.Category) has status 2
+    #
+    # same with temperatures. we need to add the location
+    # var 2/16 (Air Temp.Server In.Top.DescName) has status Air Temperature
+    # var 2/17 (Air Temp.Server In.Top.Value) has status 18.40 degree C
+    # var 2/18 (Air Temp.Server In.Top.SetPtHighAlarm) has status 50.00 degree C
+    # var 2/19 (Air Temp.Server In.Top.SetPtHighWarning) has status 40.00 degree C
+    # var 2/20 (Air Temp.Server In.Top.SetPtLowWarning) has status 15.00 degree C
+    # var 2/21 (Air Temp.Server In.Top.SetPtLowAlarm) has status 10.00 degree C
+    # var 2/22 (Air Temp.Server In.Top.Hysteresis) has status 5.00 %
+    # var 2/23 (Air Temp.Server In.Top.Status) has status OK
+    # var 2/24 (Air Temp.Server In.Top.Category) has status 2
+    # var 2/25 (Air Temp.Server In.Center.DescName) has status Air Temperature
+    # var 2/26 (Air Temp.Server In.Center.Value) has status 18.60 degree C
+    # var 2/27 (Air Temp.Server In.Center.SetPtHighAlarm) has status 50.00 degree C
+    # var 2/28 (Air Temp.Server In.Center.SetPtHighWarning) has status 40.00 degree C
+    # var 2/29 (Air Temp.Server In.Center.SetPtLowWarning) has status 15.00 degree C
+    # var 2/30 (Air Temp.Server In.Center.SetPtLowAlarm) has status 10.00 degree C
+    # var 2/31 (Air Temp.Server In.Center.Hysteresis) has status 5.00 %
+    # var 2/32 (Air Temp.Server In.Center.Status) has status OK
+    # var 2/33 (Air Temp.Server In.Center.Category) has status 2
+    # DRECKSSCHEISSE!!!!! Rein, Raus, alles gleich!!!!
+    # var 2/53 (Air Temp.Server Out.Top.DescName) has status Air Temperature
+    # var 2/54 (Air Temp.Server Out.Top.Value) has status 22.10 degree C
+    # var 2/55 (Air Temp.Server Out.Top.SetPtHighAlarm) has status 50.00 degree C
+    # var 2/56 (Air Temp.Server Out.Top.SetPtHighWarning) has status 40.00 degree C
+    # var 2/57 (Air Temp.Server Out.Top.SetPtLowWarning) has status 15.00 degree C
+    # var 2/58 (Air Temp.Server Out.Top.SetPtLowAlarm) has status 10.00 degree C
+    # var 2/59 (Air Temp.Server Out.Top.Hysteresis) has status 5.00 %
+    # var 2/60 (Air Temp.Server Out.Top.Status) has status OK
+    # var 2/61 (Air Temp.Server Out.Top.Category) has status 2
+
+    # Wenn DescName doppelt, dann ersetzen durch den verkuerzten,
+    # aber einzigartigen cmcIIIVarGroupName.
+    if ($perf_variables->{$_}->{DescName} and
+        exists $duplicates->{$perf_variables->{$_}->{DescName}}) {
+      $perf_variables->{$_}->{DescName} = shift @{$duplicates->{$perf_variables->{$_}->{DescName}}};
+    }
     push(@{$self->{perf_variables}}, 
         CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::VariableGroup->new(%{$perf_variables->{$_}}));
   }
 }
 
+sub split_label {
+  my ($self, $label, $separator) = @_;
+  if ($separator eq ".") {
+    $label =~ s/\./_____/g;
+  } else {
+    $label =~ s/./_____/g;
+  }
+  return split /_____/, $label;
+}
+
+sub find_common_words {
+    my ($self, $split_on, @labels) = @_;
+    my @split_labels = map { [$self->split_label($_, $split_on)] } @labels;
+    my %word_count;
+    # Count the occurrence of each word across all labels
+    for my $label (@split_labels) {
+        for my $word (@$label) {
+            $word_count{$word}++;
+        }
+    }
+    # Identify common words (appear in all labels)
+    my @common_words;
+    for my $word (keys %word_count) {
+        push @common_words, $word if $word_count{$word} == @split_labels;
+    }
+    return @common_words;
+}
+
+sub remove_common_words {
+    my ($self, $data) = @_;
+    foreach my $key (keys %$data) {
+        my $labels = $data->{$key};
+        next unless @$labels;
+        my @common_words = $self->find_common_words(".", @$labels);
+        # Remove the common words from each label
+        @$labels = map {
+            my $label = $_;
+            # Split label into words, remove common words, and rejoin them
+            my @words = $self->split_label($label, ".");
+            my @remaining_words = grep { my $word = $_; !grep { $_ eq $word } @common_words } @words;
+            join('.', @remaining_words);
+        } @$labels;
+        @$labels = map {
+          if ($_ =~ /^$key/) {
+            # 'Fan' => ['Fans.Current Speed.Fan1', 'Fans.Current Speed.Fan2',
+            # becomes ['Fan1', 'Fan2'...
+            $_;
+          } else {
+            # 'Air Temperature' => ['Air Temp.Server In.Average',
+            #                       'Air Temp.Server In.Bottom',
+            # becomes
+            #     'Air Temperature Server In.Average',
+            #     'Air Temperature Server In.Bottom',
+            $key." ".$_;
+          }
+        } @$labels;
+    }
+    return $data;
+}
 
 package CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::Variable;
 our @ISA = qw(Monitoring::GLPlugin::SNMP::TableItem);
@@ -256,6 +416,9 @@ use strict;
 
 sub finish {
   my $self = shift;
+if (! $self->{DescName}) {
+ printf "SCHEIS %s\n", Data::Dumper::Dumper($self);
+}
   $self->{DescName} ||= $self->{cmcIIIVarGroupName}; # undef ist mir schon untergekommen
 #
 #
@@ -277,13 +440,8 @@ sub finish {
 if (! $self->{DescName}) {
  printf "%s\n", Data::Dumper::Dumper($self);
 }
-  if ($self->{ShortDescName}) {
-    $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{ShortDescName};
-    $self->{name} =~ s/\s/_/g;
-  } else {
-    $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{DescName};
-    $self->{name} =~ s/\s/_/g;
-  }
+  $self->{name} = "dev ".$self->{cmcIIIVarDeviceIndex}." ".$self->{DescName};
+  $self->{name} =~ s/\s/_/g;
   foreach (qw(cmcIIIVarUnit)) {
     if (defined $self->{$_}) {
       $self->{$_} =~ s/[^%\w]//g;
@@ -321,7 +479,9 @@ sub check {
   $self->add_info(sprintf '%s has status %s',
       $self->{name}, $self->{Status}
   );
-  if ($self->{Status} ne "OK" and $self->{Status} ne "n.a.") {
+  if ($self->{Status} ne "OK" and $self->{Status} ne "n.a." and
+      # kuehl genug, blaest nicht
+      not ($self->{Status} eq "Inactive" and $self->{DescName} =~ /Fan/)) {
     $self->add_critical();
   }
   if ($self->{SetPtLowWarning} || $self->{SetPtHighWarning} ||
