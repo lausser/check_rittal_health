@@ -121,6 +121,33 @@ sub group_variables {
       $has_status->{$prefix} = $var->{cmcIIIVarValueStr};
     }
   }
+  # First pass: identify Fahrenheit temperature groups that should be skipped
+  # because they have a corresponding Celsius group
+  my $skip_fahrenheit_groups = {};
+  foreach my $var (@{$self->{variables}}) {
+    next unless $var->{cmcIIIVarName} =~ /^(.*)\.Value$/;
+    my $var_item = $1;
+    next unless $var_item =~ /Temperature/;
+    next unless $var->{cmcIIIVarUnit} =~ /degree F/;
+
+    # This is a Fahrenheit temperature value
+    # Check if there's a Celsius version for the same device and var_item
+    my $has_celsius = 0;
+    foreach my $other_var (@{$self->{variables}}) {
+      next if $other_var->{cmcIIIVarDeviceIndex} ne $var->{cmcIIIVarDeviceIndex};
+      next unless $other_var->{cmcIIIVarName} =~ /^\Q$var_item\E\.Value$/;
+      next unless $other_var->{cmcIIIVarUnit} =~ /degree C/;
+      $has_celsius = 1;
+      last;
+    }
+
+    if ($has_celsius) {
+      # Mark all variables with this device+var_item combination to be skipped
+      my $skip_key = $var->{cmcIIIVarDeviceIndex} . "|" . $var_item;
+      $skip_fahrenheit_groups->{$skip_key} = 1;
+    }
+  }
+
   foreach (@{$self->{variables}}) {
     $_->{cmcIIIVarName} =~ /^(.*)\.(.*?)$/;
     my $var_item = $1;
@@ -132,6 +159,58 @@ sub group_variables {
     # looks like a sollwert
     # var 2/109 (Config.Fans.Fan1) has status 80 %
     next if $var_item =~ /Config\.Fan/;
+
+    # Skip all variables belonging to Fahrenheit groups that have Celsius equivalents
+    my $skip_key = $_->{cmcIIIVarDeviceIndex} . "|" . $var_item;
+    if (exists $skip_fahrenheit_groups->{$skip_key}) {
+      # This key indicates there are both Celsius and Fahrenheit for this device+var_item
+      # We need to determine if THIS specific variable belongs to the Fahrenheit set
+      # Strategy: Find a .Value variable with matching indices to determine the unit
+      my $is_fahrenheit_var = 0;
+
+      # If this variable itself has degree F, it's Fahrenheit
+      if (defined $_->{cmcIIIVarUnit} && $_->{cmcIIIVarUnit} =~ /degree F/) {
+        $is_fahrenheit_var = 1;
+      } elsif (defined $_->{cmcIIIVarUnit} && $_->{cmcIIIVarUnit} =~ /degree C/) {
+        # Celsius, keep it
+        $is_fahrenheit_var = 0;
+      } else {
+        # No unit or non-temperature unit (like Status, Category, Hysteresis)
+        # We need to find which "group" this belongs to by looking at .Value variables
+        # Strategy: Celsius variables always come before Fahrenheit variables
+        # For device 12:
+        #   Celsius group: vars 1-10 (indices 1 to 10)
+        #   Fahrenheit group: vars 11-20 (indices 11 to 20)
+        # So if this variable's index is less than the Fahrenheit .Value index,
+        # it belongs to Celsius. Otherwise Fahrenheit.
+        my $current_idx = $_->{cmcIIIVarIndex};
+        my $celsius_value_idx = undef;
+        my $fahrenheit_value_idx = undef;
+
+        foreach my $other_var (@{$self->{variables}}) {
+          next if $other_var->{cmcIIIVarDeviceIndex} ne $_->{cmcIIIVarDeviceIndex};
+          next unless $other_var->{cmcIIIVarName} =~ /^\Q$var_item\E\.Value$/;
+          next unless defined $other_var->{cmcIIIVarUnit};
+
+          if ($other_var->{cmcIIIVarUnit} =~ /degree C/) {
+            $celsius_value_idx = $other_var->{cmcIIIVarIndex};
+          } elsif ($other_var->{cmcIIIVarUnit} =~ /degree F/) {
+            $fahrenheit_value_idx = $other_var->{cmcIIIVarIndex};
+          }
+        }
+
+        # If we found both C and F values, determine which group this variable belongs to
+        if (defined $celsius_value_idx && defined $fahrenheit_value_idx) {
+          # Variables are ordered: Celsius comes first, then Fahrenheit
+          # If this variable's index is >= Fahrenheit value index, it's Fahrenheit
+          if ($current_idx >= $fahrenheit_value_idx) {
+            $is_fahrenheit_var = 1;
+          }
+        }
+      }
+
+      next if $is_fahrenheit_var;
+    }
     $perf_variables->{$var_item} = {} if ! exists $perf_variables->{$var_item};
     $perf_variables->{$var_item}->{valid} = 0 if ! exists $perf_variables->{$var_item}->{valid};
     $perf_variables->{$var_item}->{$var_var} = $_->{cmcIIIVarValueStr};
@@ -417,7 +496,7 @@ use strict;
 sub finish {
   my $self = shift;
 if (! $self->{DescName}) {
- printf "SCHEIS %s\n", Data::Dumper::Dumper($self);
+	#printf "SCHEIS %s\n", Data::Dumper::Dumper($self);
 }
   $self->{DescName} ||= $self->{cmcIIIVarGroupName}; # undef ist mir schon untergekommen
 #
@@ -476,13 +555,23 @@ if (! $self->{DescName}) {
 
 sub check {
   my $self = shift;
+  # Convert undef. to unknown for better readability
+  my $status = $self->{Status};
+  if ($status eq 'undef.') {
+    $status = 'unknown';
+  }
   $self->add_info(sprintf '%s has status %s',
-      $self->{name}, $self->{Status}
+      $self->{name}, $status
   );
-  if ($self->{Status} ne "OK" and $self->{Status} ne "n.a." and
+  if ($status ne "OK" and $status ne "n.a." and
       # kuehl genug, blaest nicht
-      not ($self->{Status} eq "Inactive" and $self->{DescName} =~ /Fan/)) {
-    $self->add_critical();
+      not ($status eq "Inactive" and $self->{DescName} =~ /Fan/)) {
+    # Treat unknown status as WARNING, not CRITICAL
+    if ($status eq 'unknown') {
+      $self->add_warning();
+    } else {
+      $self->add_critical();
+    }
   }
   if ($self->{SetPtLowWarning} || $self->{SetPtHighWarning} ||
       $self->{SetPtLowAlarm} || $self->{SetPtHighAlarm}) {
@@ -493,7 +582,7 @@ sub check {
         critical => $self->{SetPtLowAlarm}.":".$self->{SetPtHighAlarm});
   }
   $self->add_perfdata(label => $self->{name},
-      uom => $self->{cmcIIIVarUnit} eq "%" ? 
+      uom => $self->{cmcIIIVarUnit} eq "%" ?
           $self->{cmcIIIVarUnit} : undef,
       value => $self->{Value});
 }
