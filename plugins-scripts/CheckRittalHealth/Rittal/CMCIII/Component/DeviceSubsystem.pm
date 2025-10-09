@@ -121,30 +121,99 @@ sub group_variables {
       $has_status->{$prefix} = $var->{cmcIIIVarValueStr};
     }
   }
-  # First pass: identify Fahrenheit temperature groups that should be skipped
-  # because they have a corresponding Celsius group
-  my $skip_fahrenheit_groups = {};
+  # First pass: For temperature sensors with both Celsius and Fahrenheit,
+  # determine which unit to skip based on validity of the data
+  my $skip_temp_unit = {};  # key: device|var_item, value: 'C' or 'F' to skip
+  my $temp_data = {};       # Collect C and F data for each temperature sensor
+
+  # Collect all temperature Value and Status data
   foreach my $var (@{$self->{variables}}) {
     next unless $var->{cmcIIIVarName} =~ /^(.*)\.Value$/;
     my $var_item = $1;
     next unless $var_item =~ /Temperature/;
-    next unless $var->{cmcIIIVarUnit} =~ /degree F/;
+    next unless defined $var->{cmcIIIVarUnit};
+    next unless $var->{cmcIIIVarUnit} =~ /degree ([CF])/;
 
-    # This is a Fahrenheit temperature value
-    # Check if there's a Celsius version for the same device and var_item
-    my $has_celsius = 0;
-    foreach my $other_var (@{$self->{variables}}) {
-      next if $other_var->{cmcIIIVarDeviceIndex} ne $var->{cmcIIIVarDeviceIndex};
-      next unless $other_var->{cmcIIIVarName} =~ /^\Q$var_item\E\.Value$/;
-      next unless $other_var->{cmcIIIVarUnit} =~ /degree C/;
-      $has_celsius = 1;
-      last;
+    my $unit = $1;
+    my $key = $var->{cmcIIIVarDeviceIndex} . "|" . $var_item . "|" . $unit;
+
+    $temp_data->{$key} = {
+      device => $var->{cmcIIIVarDeviceIndex},
+      var_item => $var_item,
+      unit => $unit,
+      value => $var->{cmcIIIVarValueInt},
+      value_str => $var->{cmcIIIVarValueStr},
+    };
+  }
+
+  # Find Status for each temperature group
+  foreach my $var (@{$self->{variables}}) {
+    next unless $var->{cmcIIIVarName} =~ /^(.*)\.Status$/;
+    my $var_item = $1;
+    next unless $var_item =~ /Temperature/;
+
+    # Match Status to the correct C or F group by index proximity
+    # Status comes AFTER Value in each group
+    my $best_match = undef;
+    my $best_distance = 999999;
+
+    foreach my $key (keys %{$temp_data}) {
+      next unless $key =~ /^\Q$var->{cmcIIIVarDeviceIndex}\E\|\Q$var_item\E\|/;
+
+      # Find the Value index for this group
+      foreach my $val_var (@{$self->{variables}}) {
+        next unless $val_var->{cmcIIIVarDeviceIndex} eq $var->{cmcIIIVarDeviceIndex};
+        next unless $val_var->{cmcIIIVarName} =~ /^\Q$var_item\E\.Value$/;
+        next unless defined $val_var->{cmcIIIVarUnit};
+        next unless $val_var->{cmcIIIVarUnit} =~ /degree $temp_data->{$key}->{unit}/;
+
+        # Status should come AFTER Value
+        if ($val_var->{cmcIIIVarIndex} < $var->{cmcIIIVarIndex}) {
+          my $distance = $var->{cmcIIIVarIndex} - $val_var->{cmcIIIVarIndex};
+          if ($distance < $best_distance) {
+            $best_distance = $distance;
+            $best_match = $key;
+          }
+        }
+      }
     }
 
-    if ($has_celsius) {
-      # Mark all variables with this device+var_item combination to be skipped
-      my $skip_key = $var->{cmcIIIVarDeviceIndex} . "|" . $var_item;
-      $skip_fahrenheit_groups->{$skip_key} = 1;
+    if (defined $best_match) {
+      $temp_data->{$best_match}->{status} = $var->{cmcIIIVarValueStr};
+    }
+  }
+
+  # Decide which unit to skip for each device+var_item pair
+  my $checked_pairs = {};
+  foreach my $key (keys %{$temp_data}) {
+    my $data = $temp_data->{$key};
+    my $base_key = $data->{device} . "|" . $data->{var_item};
+
+    next if exists $checked_pairs->{$base_key};
+    $checked_pairs->{$base_key} = 1;
+
+    my $c_key = $base_key . "|C";
+    my $f_key = $base_key . "|F";
+
+    # Only process if both C and F exist
+    next unless exists $temp_data->{$c_key} && exists $temp_data->{$f_key};
+
+    my $c_data = $temp_data->{$c_key};
+    my $f_data = $temp_data->{$f_key};
+
+    # Check validity: valid if status is not 'undef.' and value is not 0
+    my $c_status = $c_data->{status} || '';
+    my $f_status = $f_data->{status} || '';
+    my $c_valid = ($c_status ne 'undef.' && $c_status ne '' && $c_data->{value} != 0);
+    my $f_valid = ($f_status ne 'undef.' && $f_status ne '' && $f_data->{value} != 0);
+
+    # Decision:
+    # - If only one is valid, use it (skip the other)
+    # - If both valid or both invalid, prefer Celsius (skip Fahrenheit)
+    if ($f_valid && !$c_valid) {
+      $skip_temp_unit->{$base_key} = 'C';  # Celsius is broken, use Fahrenheit
+    } else {
+      $skip_temp_unit->{$base_key} = 'F';  # Default: skip Fahrenheit
     }
   }
 
@@ -160,29 +229,19 @@ sub group_variables {
     # var 2/109 (Config.Fans.Fan1) has status 80 %
     next if $var_item =~ /Config\.Fan/;
 
-    # Skip all variables belonging to Fahrenheit groups that have Celsius equivalents
+    # Skip temperature variables based on validity check
     my $skip_key = $_->{cmcIIIVarDeviceIndex} . "|" . $var_item;
-    if (exists $skip_fahrenheit_groups->{$skip_key}) {
-      # This key indicates there are both Celsius and Fahrenheit for this device+var_item
-      # We need to determine if THIS specific variable belongs to the Fahrenheit set
-      # Strategy: Find a .Value variable with matching indices to determine the unit
-      my $is_fahrenheit_var = 0;
+    if (exists $skip_temp_unit->{$skip_key}) {
+      my $unit_to_skip = $skip_temp_unit->{$skip_key};  # 'C' or 'F'
 
-      # If this variable itself has degree F, it's Fahrenheit
-      if (defined $_->{cmcIIIVarUnit} && $_->{cmcIIIVarUnit} =~ /degree F/) {
-        $is_fahrenheit_var = 1;
-      } elsif (defined $_->{cmcIIIVarUnit} && $_->{cmcIIIVarUnit} =~ /degree C/) {
-        # Celsius, keep it
-        $is_fahrenheit_var = 0;
+      # Determine which unit THIS variable belongs to
+      my $var_unit = undef;
+
+      # If this variable has a degree unit, use it directly
+      if (defined $_->{cmcIIIVarUnit} && $_->{cmcIIIVarUnit} =~ /degree ([CF])/) {
+        $var_unit = $1;
       } else {
-        # No unit or non-temperature unit (like Status, Category, Hysteresis)
-        # We need to find which "group" this belongs to by looking at .Value variables
-        # Strategy: Celsius variables always come before Fahrenheit variables
-        # For device 12:
-        #   Celsius group: vars 1-10 (indices 1 to 10)
-        #   Fahrenheit group: vars 11-20 (indices 11 to 20)
-        # So if this variable's index is less than the Fahrenheit .Value index,
-        # it belongs to Celsius. Otherwise Fahrenheit.
+        # No unit (Status, Category, etc.) - find closest .Value to determine unit
         my $current_idx = $_->{cmcIIIVarIndex};
         my $celsius_value_idx = undef;
         my $fahrenheit_value_idx = undef;
@@ -199,17 +258,19 @@ sub group_variables {
           }
         }
 
-        # If we found both C and F values, determine which group this variable belongs to
+        # Determine unit by index: variables between C_Value and F_Value belong to C,
+        # variables at or after F_Value belong to F
         if (defined $celsius_value_idx && defined $fahrenheit_value_idx) {
-          # Variables are ordered: Celsius comes first, then Fahrenheit
-          # If this variable's index is >= Fahrenheit value index, it's Fahrenheit
           if ($current_idx >= $fahrenheit_value_idx) {
-            $is_fahrenheit_var = 1;
+            $var_unit = 'F';
+          } else {
+            $var_unit = 'C';
           }
         }
       }
 
-      next if $is_fahrenheit_var;
+      # Skip this variable if it belongs to the unit we want to skip
+      next if defined $var_unit && $var_unit eq $unit_to_skip;
     }
     $perf_variables->{$var_item} = {} if ! exists $perf_variables->{$var_item};
     $perf_variables->{$var_item}->{valid} = 0 if ! exists $perf_variables->{$var_item}->{valid};

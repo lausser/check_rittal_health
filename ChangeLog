@@ -1,3 +1,7 @@
+* 2025-10-09 4.1.2
+  fix case where a sensor has both C and F variables. prefer C except when C
+  variables are broken and F variables are not.
+  take precedence
 * 2025-01-08 4.1.1
   add checks for power and fuse (also perfdata) of cmc III
 * 2024-10-09 4.1
