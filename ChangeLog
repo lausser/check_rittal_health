@@ -1,3 +1,5 @@
+* 2026-06-01 4.1.2.1
+  reduce runtime for cmc III and a large Vars table
 * 2025-10-09 4.1.2
   fix case where a sensor has both C and F variables. prefer C except when C
   variables are broken and F variables are not.

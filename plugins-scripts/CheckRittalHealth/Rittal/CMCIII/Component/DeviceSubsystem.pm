@@ -11,7 +11,13 @@ sub init {
       cmcIIINumberOfDevs cmcIIINumberOfVars));
   $self->get_snmp_tables('RITTAL-CMC-III-MIB', [
       ['devices', 'cmcIIIDevTable', 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::Device'],
-      ['variables', 'cmcIIIVarTable', 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::Variable'],
+      # Only fetch the columns actually used downstream. The device/var
+      # indices come from the SNMP instance index (see Variable::finish),
+      # so the index columns need not be walked. cmcIIIVarTable can have
+      # thousands of rows; walking only these 5 columns instead of all 15
+      # cuts the SNMP traffic (and runtime) accordingly.
+      ['variables', 'cmcIIIVarTable', 'CheckRittalHealth::Rittal::CMCIII::Component::DeviceSubsystem::Variable', undef,
+          [qw(cmcIIIVarName cmcIIIVarUnit cmcIIIVarScale cmcIIIVarValueStr cmcIIIVarValueInt)]],
   ]);
   #if ($self->filter_name($dev->{cmcIIIDevIndex})) {
   $self->assign();
